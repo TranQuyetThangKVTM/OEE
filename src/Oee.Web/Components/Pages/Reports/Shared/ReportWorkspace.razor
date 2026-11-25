@@ -1,0 +1,284 @@
+@namespace Oee.Web.Components.Pages.Reports
+@using Oee.Application.Contracts.Reporting
+@using Oee.Application.Reporting
+@using ChartSeries = MudBlazor.ChartSeries<double>
+@inject IReportAnalysisQueryService Query
+
+@* Workspace dùng chung cho các route báo cáo. Nó tải lookup, tạo ReportQuery, hiển thị KPI/xu hướng/Pareto,
+   cung cấp bảng server-side và dựng URL PDF từ chính bộ lọc hiện tại. Công thức OEE và số liệu PDF/UI
+   đều đến từ Application Query; Razor chỉ định dạng ratio 0..1 thành phần trăm. *@
+<PageTitle>@Title</PageTitle>
+@if (IsCompactReport)
+{
+    <PageHeader Title="@Title" Subtitle="@Subtitle" />
+}
+else
+{
+<PageHeader OnRefresh="ReloadAsync" Title="@Title" Subtitle="@Subtitle">
+    <Actions>
+        <MudButton Href="@ExportUrl"
+                   Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.PictureAsPdf"
+                   Target="_blank" Disabled="@(filters is null)">Xuất PDF</MudButton>
+    </Actions>
+    <Metrics>
+        @if (report is not null) { <MetricCard Label="Dòng báo cáo" Value="@report.TotalCount.ToString("N0")" Icon="@Icons.Material.Filled.TableChart" Color="Color.Info" /> }
+    </Metrics>
+</PageHeader>
+}
+
+@if (!string.IsNullOrWhiteSpace(error))
+{
+    <MudAlert Dense="true" Class="my-3"
+              Severity="Severity.Error" Variant="Variant.Outlined">@error</MudAlert>
+}
+
+@if (filterLoading)
+{
+    <LoadingOverlay Visible="true" />
+}
+else
+{
+    @if (IsCompactReport)
+    {
+        <MudPaper Outlined="true" Elevation="0" Class="oee-page-filter kpi-filters pa-3 mb-3">
+            <MudGrid Spacing="2">
+                <MudItem xs="12" md="@(Kind is ReportKind.DailyOee or ReportKind.Reliability || IsPeriodKpi ? 4 : 3)">
+                    <MudAutocomplete T="ReportFilterOption" Value="selectedUnit" ValueChanged="ChangeUnitAsync"
+                                     Label="Thiết bị" SearchFunc="SearchUnitsAsync" ToStringFunc="UnitText"
+                                     Clearable="true" ResetValueOnEmptyText="true" CoerceText="true" MaxItems="100"
+                                     Variant="Variant.Outlined" Margin="Margin.Dense"
+                                     AdornmentIcon="@Icons.Material.Filled.Search" Adornment="Adornment.Start" />
+                </MudItem>
+                @if (Kind is ReportKind.ShiftKpi or ReportKind.DowntimeEvents)
+                {
+                    <MudItem xs="12" md="2">
+                        <MudSelect T="Guid?" @bind-Value="shiftId" @bind-Value:after="ApplyFiltersAsync"
+                                   Label="Ca sản xuất" Clearable="true" Variant="Variant.Outlined" Margin="Margin.Dense">
+                            @foreach (var shift in VisibleShifts)
+                            { <MudSelectItem T="Guid?" Value="@((Guid?)shift.Id)">@shift.Name</MudSelectItem> }
+                        </MudSelect>
+                    </MudItem>
+                }
+                @if (Kind == ReportKind.DowntimeEvents)
+                {
+                    <MudItem xs="12" md="2">
+                        <MudSelect T="Guid?" @bind-Value="reasonId" @bind-Value:after="ApplyFiltersAsync"
+                                   Label="Lý do dừng" Clearable="true" Variant="Variant.Outlined" Margin="Margin.Dense">
+                            @foreach (var reason in filters?.DowntimeReasons ?? [])
+                            { <MudSelectItem T="Guid?" Value="@((Guid?)reason.Id)">@reason.Name</MudSelectItem> }
+                        </MudSelect>
+                    </MudItem>
+                }
+                <MudItem xs="12" md="@(Kind == ReportKind.DowntimeEvents ? 3 : 4)">
+                    <MudDateRangePicker DateRange="KpiDateRange" DateRangeChanged="ChangeKpiRangeAsync"
+                                        Label="Khoảng thời gian" DateFormat="dd/MM/yyyy" DisplayMonths="2"
+                                        Variant="Variant.Outlined" Margin="Margin.Dense" Adornment="Adornment.End" />
+                </MudItem>
+                <MudItem xs="12" md="@(Kind == ReportKind.DowntimeEvents ? 2 : Kind == ReportKind.ShiftKpi ? 3 : 4)">
+                    <MudStack Row="true" Spacing="1" Wrap="Wrap.Wrap">
+                        <MudButton OnClick="ReloadAsync" Color="Color.Secondary" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Refresh" Size="Size.Small">Làm mới</MudButton>
+                        <MudButton Href="@ExportUrl" Target="_blank" Disabled="@(filters is null)" Color="Color.Error" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.PictureAsPdf" Size="Size.Small">Xuất PDF</MudButton>
+                    </MudStack>
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
+    }
+    else
+    {
+    <PageFilter>
+        <label class="report-date-field">Từ ngày<input type="date" value="@DateValue(fromDate)" @onchange="ChangeFromAsync" aria-label="Từ ngày" /></label>
+        <label class="report-date-field">Đến ngày<input type="date" value="@DateValue(toDate)" @onchange="ChangeToAsync" aria-label="Đến ngày" /></label>
+        <MudButtonGroup Size="Size.Small"
+                        Variant="Variant.Outlined"><MudButton OnClick="() => SetRangeAsync(1)">Hôm nay</MudButton><MudButton OnClick="() => SetRangeAsync(7)">7 ngày</MudButton><MudButton OnClick="() => SetRangeAsync(30)">30 ngày</MudButton></MudButtonGroup>
+        <MudSelect T="Guid?" Value="siteId" Label="Nhà máy"
+                   Clearable="true"
+                   ValueChanged="OnSiteChangedAsync">
+            @foreach (var item in filters?.Sites ?? []) { <MudSelectItem T="Guid?" Value="@((Guid?)item.Id)">@item.Code · @item.Name</MudSelectItem> }
+        </MudSelect>
+        <MudSelect T="Guid?" Value="areaId" Label="Khu vực sản xuất"
+                   Clearable="true"
+                   ValueChanged="OnAreaChangedAsync">
+            @foreach (var item in VisibleAreas) { <MudSelectItem T="Guid?" Value="@((Guid?)item.Id)">@item.Code · @item.Name</MudSelectItem> }
+        </MudSelect>
+        <MudSelect T="Guid?" Value="groupId" Label="Dây chuyền"
+                   Clearable="true"
+                   ValueChanged="OnWorkCenterChangedAsync">
+            @foreach (var item in VisibleWorkCenters) { <MudSelectItem T="Guid?" Value="@((Guid?)item.Id)">@item.Code · @item.Name</MudSelectItem> }
+        </MudSelect>
+        <MudSelect T="Guid?" @bind-Value="workUnitId" Label="Thiết bị"
+                   Clearable="true"
+                   @bind-Value:after="ApplyFiltersAsync">
+            @foreach (var item in VisibleWorkUnits) { <MudSelectItem T="Guid?" Value="@((Guid?)item.Id)">@item.Code · @item.Name</MudSelectItem> }
+        </MudSelect>
+        <MudSelect T="Guid?" @bind-Value="productId" Label="SKU"
+                   Clearable="true"
+                   @bind-Value:after="ApplyFiltersAsync">
+            @foreach (var item in filters?.Products ?? []) { <MudSelectItem T="Guid?" Value="@((Guid?)item.Id)">@item.Code · @item.Name</MudSelectItem> }
+        </MudSelect>
+        <MudSelect T="Guid?" @bind-Value="shiftId" Label="Ca"
+                   Clearable="true"
+                   @bind-Value:after="ApplyFiltersAsync">
+            @foreach (var item in VisibleShifts) { <MudSelectItem T="Guid?" Value="@((Guid?)item.Id)">@item.Code · @item.Name</MudSelectItem> }
+        </MudSelect>
+        <MudTextField T="string" @bind-Value="search" Label="Tìm trong báo cáo"
+                      Immediate="true" DebounceInterval="500"
+                      @bind-Value:after="ApplyFiltersAsync" />
+    </PageFilter>
+    }
+}
+
+
+@if (report is not null)
+{
+    @if (IsCompactReport)
+    {
+        @if (IsPeriodKpi || Kind == ReportKind.Reliability)
+        { <KpiReportSummary Data="report" /> }
+        @if (Kind == ReportKind.DowntimeEvents && report.Timeline is not null)
+        { <EquipmentTimelineView Data="report.Timeline" Title="@($"Downtime tracking · {filters?.Shifts.FirstOrDefault(x => x.Id == shiftId)?.Name ?? "Khoảng thời gian"}")" /> }
+    }
+    else
+    {
+    <div class="report-metric-grid" aria-label="Chỉ số báo cáo">
+        @foreach (var metric in report.Metrics)
+        {
+            <MetricCard Label="@metric.Label" Value="@FormatMetric(metric)" Description="@metric.Description"
+                        Icon="@MetricIcon(metric.Key)" Color="@MetricColor(metric.Key)" />
+        }
+    </div>
+    @if (!report.HasData)
+    {
+        <EmptyState Title="Không có dữ liệu phù hợp với bộ lọc" />
+    }
+    else
+    {
+        <div class="report-chart-grid">
+            <MudPaper Class="dashboard-panel pa-4" Elevation="0">
+                <MudText Typo="Typo.h6">Xu hướng KPI</MudText>
+                @if (report.Trend.Count == 0) { <EmptyState Title="Chưa có dữ liệu xu hướng" /> }
+                else { <MudChart T="double" ChartType="ChartType.Line" ChartSeries="@trendSeries.ToList()"
+                          Width="100%" Height="290px" /> }
+            </MudPaper>
+            <MudPaper Class="dashboard-panel pa-4" Elevation="0">
+                <MudText Typo="Typo.h6">Phân bố / Pareto</MudText>
+                @if (report.Breakdown.Count == 0) { <EmptyState Title="Chưa có dữ liệu phân bố" /> }
+                else
+                {
+                    <ol class="report-pareto">
+                        @foreach (var item in report.Breakdown.Take(10))
+                        {
+                            <li>
+                                @if (!string.IsNullOrWhiteSpace(item.DrillDownUrl)) { <a href="@item.DrillDownUrl"><strong>@item.Label</strong><span>@item.Value.ToString("N1") phút · @item.Percentage.ToString("P1")</span></a> }
+                                else { <div><strong>@item.Label</strong><span>@item.Value.ToString("N1") · @item.Percentage.ToString("P1")</span></div> }
+                                <MudProgressLinear Value="@((double)(item.Percentage * 100))"
+                                                   Color="Color.Error" Rounded="true" />
+                            </li>
+                        }
+                    </ol>
+                }
+            </MudPaper>
+        </div>
+    }
+    }
+}
+
+@if (!filterLoading && filters is not null)
+{
+    <MudPaper Outlined="@IsCompactReport" Class="@(Kind == ReportKind.Reliability ? "kpi-table reliability-table" : IsCompactReport ? "kpi-table" : "")" Elevation="0">
+    @if (Kind == ReportKind.Reliability)
+    { <MudText Typo="Typo.subtitle2" Class="pa-3">Chi tiết thiết bị có kế hoạch hoặc lịch sử trong kỳ</MudText> }
+    @if (IsPeriodKpi)
+    {
+        <MudStack Row="true" Class="pa-3" Spacing="1" AlignItems="AlignItems.Center">
+            <MudIcon Icon="@Icons.Material.Filled.TableChart" Color="Color.Primary" Size="Size.Small" />
+            <MudText Typo="Typo.subtitle2">Bảng chi tiết theo @(Kind == ReportKind.WeeklyKpi ? "tuần" : "tháng")</MudText>
+            <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined">@(report?.TotalCount ?? 0)</MudChip>
+        </MudStack>
+    }
+    <PageTable TItem="ReportTableRow" @ref="table" ItemsProvider="Load" AriaLabel="@Title" EmptyTitle="@(IsCompactReport ? "Không có dữ liệu phù hợp với bộ lọc" : "Không có dòng báo cáo phù hợp")" Height="TableHeight" FixedHeader="IsCompactReport"
+               GroupBy="@(CanGroupRows ? grouping.Definition : null)" GroupColumnSpan="9">
+        <ToolbarContent>
+            @if (CanGroupRows)
+            {
+                <TableGroupingSelector Value="grouping.Mode" ValueChanged="grouping.SetMode" AllowProduct="false"
+                                       ExpandAll="() => table?.ExpandAllGroups()" CollapseAll="() => table?.CollapseAllGroups()" />
+            }
+        </ToolbarContent>
+        <HeaderContent>
+            @if (Kind == ReportKind.Reliability)
+            {
+                <MudTh>Thiết bị</MudTh><MudTh Class="kpi-number">Sự cố</MudTh><MudTh Class="kpi-number">Uptime</MudTh><MudTh Class="kpi-number">Dừng</MudTh>
+                <MudTh Class="kpi-number">MTBF</MudTh><MudTh Class="kpi-number">MTTR</MudTh><MudTh Class="kpi-number">Availability</MudTh>
+            }
+            else if (IsKpi)
+            {
+                <MudTh><MudTableSortLabel T="ReportTableRow" SortLabel="@(Kind == ReportKind.ShiftKpi ? "date" : "code")">@(Kind == ReportKind.WeeklyKpi ? "Tuần" : Kind == ReportKind.MonthlyKpi ? "Tháng" : "Ngày")</MudTableSortLabel></MudTh>
+                @if (Kind == ReportKind.ShiftKpi) { <MudTh>Ca sản xuất</MudTh> }
+                @if (!IsPeriodKpi) { <MudTh>Thiết bị</MudTh> }
+                @if (Kind == ReportKind.WeeklyKpi) { <MudTh>Khoảng ngày</MudTh> }
+                <MudTh Class="kpi-number"><MudTableSortLabel T="ReportTableRow" SortLabel="availability">Sẵn sàng</MudTableSortLabel></MudTh>
+                <MudTh Class="kpi-number"><MudTableSortLabel T="ReportTableRow" SortLabel="performance">Hiệu suất</MudTableSortLabel></MudTh>
+                <MudTh Class="kpi-number"><MudTableSortLabel T="ReportTableRow" SortLabel="quality">Chất lượng</MudTableSortLabel></MudTh>
+                <MudTh Class="kpi-number"><MudTableSortLabel T="ReportTableRow" SortLabel="oee">OEE</MudTableSortLabel></MudTh>
+                <MudTh Class="kpi-number">Loading</MudTh>
+                @if (Kind == ReportKind.DailyOee) { <MudTh Class="kpi-number">Tổng SL</MudTh> }
+                <MudTh Class="kpi-number">SL đạt</MudTh>
+                @if (IsPeriodKpi) { <MudTh>Trạng thái</MudTh> }
+            }
+            else
+            {
+            <MudTh><MudTableSortLabel T="ReportTableRow" SortLabel="code">Kỳ / phạm vi</MudTableSortLabel></MudTh>
+            @if (Kind == ReportKind.DowntimeEvents)
+            { <MudTh>Thiết bị</MudTh><MudTh><MudTableSortLabel T="ReportTableRow" SortLabel="period">Bắt đầu</MudTableSortLabel></MudTh><MudTh>Kết thúc</MudTh><MudTh>Phút</MudTh><MudTh>Phân loại / Nhóm</MudTh><MudTh>Nguồn</MudTh><MudTh>Trạng thái</MudTh><MudTh>Thao tác</MudTh> }
+            else if (Kind == ReportKind.QualityLoss)
+            { <MudTh>Tổng</MudTh><MudTh>Đạt</MudTh><MudTh><MudTableSortLabel T="ReportTableRow" SortLabel="defect">Lỗi</MudTableSortLabel></MudTh><MudTh>Quality</MudTh><MudTh>Tỷ lệ lỗi</MudTh> }
+            else
+            { <MudTh>Thiết bị</MudTh><MudTh><MudTableSortLabel T="ReportTableRow" SortLabel="availability">A</MudTableSortLabel></MudTh><MudTh><MudTableSortLabel T="ReportTableRow" SortLabel="performance">P</MudTableSortLabel></MudTh><MudTh><MudTableSortLabel T="ReportTableRow" SortLabel="quality">Q</MudTableSortLabel></MudTh><MudTh><MudTableSortLabel T="ReportTableRow" SortLabel="oee">OEE</MudTableSortLabel></MudTh><MudTh>Loading</MudTh><MudTh>Tổng / Đạt / Lỗi</MudTh><MudTh>Drill-down</MudTh> }
+            }
+        </HeaderContent>
+        <RowTemplate Context="item">
+            @if (Kind == ReportKind.Reliability)
+            {
+                <MudTd DataLabel="Thiết bị"><MudText Typo="Typo.body2" Class="kpi-emphasis">@item.Code</MudText><MudText Typo="Typo.caption" Class="kpi-muted">@item.Label</MudText></MudTd>
+                <MudTd DataLabel="Sự cố" Class="kpi-number">@item.EventCount</MudTd>
+                <MudTd DataLabel="Uptime" Class="kpi-number">@EquipmentTimeText.Duration(item.UptimeMinutes, true)</MudTd>
+                <MudTd DataLabel="Dừng" Class="kpi-number"><MudText Typo="Typo.body2" Color="Color.Error">@EquipmentTimeText.Duration(item.DowntimeMinutes, true)</MudText></MudTd>
+                <MudTd DataLabel="MTBF" Class="kpi-number">@EquipmentTimeText.Duration(item.MtbfMinutes)</MudTd>
+                <MudTd DataLabel="MTTR" Class="kpi-number">@EquipmentTimeText.Duration(item.MttrMinutes)</MudTd>
+                <MudTd DataLabel="Availability" Class="kpi-number"><MudText Typo="Typo.body2" Class="kpi-emphasis" Color="@OeeColor(item.Availability)">@Percent(item.Availability)</MudText></MudTd>
+            }
+            else if (IsKpi)
+            {
+                <MudTd DataLabel="Kỳ">@KpiDate(item)</MudTd>
+                @if (Kind == ReportKind.ShiftKpi)
+                { <MudTd DataLabel="Ca sản xuất"><MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Secondary">@KpiShift(item)</MudChip></MudTd> }
+                @if (!IsPeriodKpi) { <MudTd DataLabel="Thiết bị">@item.WorkUnit</MudTd> }
+                @if (Kind == ReportKind.WeeklyKpi) { <MudTd DataLabel="Khoảng ngày">@PeriodRange(item)</MudTd> }
+                <MudTd DataLabel="Sẵn sàng" Class="kpi-number">@Percent(item.Availability)</MudTd>
+                <MudTd DataLabel="Hiệu suất" Class="kpi-number">@Percent(item.Performance)</MudTd>
+                <MudTd DataLabel="Chất lượng" Class="kpi-number">@Percent(item.Quality)</MudTd>
+                <MudTd DataLabel="OEE" Class="kpi-number"><MudText Typo="Typo.body2" Class="kpi-emphasis" Color="@OeeColor(item.Oee)">@Percent(item.Oee)</MudText></MudTd>
+                <MudTd DataLabel="Loading" Class="kpi-number">@item.LoadingMinutes.ToString("N0") phút</MudTd>
+                @if (Kind == ReportKind.DailyOee) { <MudTd DataLabel="Tổng SL" Class="kpi-number">@item.Total.ToString("N0")</MudTd> }
+                <MudTd DataLabel="SL đạt" Class="kpi-number"><MudText Typo="Typo.body2" Class="kpi-emphasis">@item.Good.ToString("N0")</MudText></MudTd>
+                @if (IsPeriodKpi)
+                { <MudTd DataLabel="Trạng thái"><MudChip T="string" Size="Size.Small" Color="@(item.Oee is null ? Color.Default : item.Oee >= .85m ? Color.Success : Color.Warning)" Variant="Variant.Outlined">@(item.Oee is null ? "Chưa đủ dữ liệu" : item.Oee >= .85m ? "Đạt" : "Chưa đạt")</MudChip></MudTd> }
+            }
+            else
+            {
+            <MudTd DataLabel="Kỳ / kế hoạch"><strong>@item.Label</strong>@if (!string.IsNullOrWhiteSpace(item.Code) && item.Code != item.Label) { <small class="table-subline">@item.Code</small> }</MudTd>
+            @if (Kind == ReportKind.DowntimeEvents)
+            { <MudTd>@item.WorkUnit</MudTd><MudTd>@Local(item.PeriodStart)</MudTd><MudTd>@Local(item.PeriodEnd)</MudTd><MudTd>@item.DowntimeMinutes.ToString("N1")</MudTd><MudTd>@item.Category<small class="table-subline">@item.Kind</small></MudTd><MudTd>@item.Source</MudTd><MudTd><StatusChip Text="@(item.Status ?? "—")" Kind="@(item.Status == "Open" ? SemanticKind.Warning : SemanticKind.Neutral)" /></MudTd><MudTd><RowActionMenu Label="Thao tác downtime"><RowAction Href="@item.DrillDownUrl" Label="Mở downtime"
+                           Icon="@Icons.Material.Filled.OpenInNew" /></RowActionMenu></MudTd> }
+            else if (Kind == ReportKind.QualityLoss)
+            { <MudTd>@item.Total.ToString("N0")</MudTd><MudTd>@item.Good.ToString("N0")</MudTd><MudTd>@item.Defect.ToString("N0")</MudTd><MudTd>@Percent(item.Quality)</MudTd><MudTd>@Percent(item.Attainment)</MudTd> }
+            else
+            { <MudTd>@item.WorkUnit</MudTd><MudTd>@Percent(item.Availability)</MudTd><MudTd>@Percent(item.Performance)</MudTd><MudTd>@Percent(item.Quality)</MudTd><MudTd><strong>@Percent(item.Oee)</strong></MudTd><MudTd>@item.LoadingMinutes.ToString("N1") phút</MudTd><MudTd>@item.Total.ToString("N0") / @item.Good.ToString("N0") / @item.Defect.ToString("N0")</MudTd><MudTd><MudButton Href="@item.DrillDownUrl"
+                       Size="Size.Small">Thiết bị</MudButton></MudTd> }
+            }
+        </RowTemplate>
+    </PageTable>
+    </MudPaper>
+    @if (Kind == ReportKind.Reliability && report?.Timeline is not null)
+    { <EquipmentTimelineView Data="report.Timeline" /> }
+}

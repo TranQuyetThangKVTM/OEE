@@ -1,0 +1,6 @@
+@namespace Oee.Web.Components.Pages.Reports
+@page "/reports/daily-oee"
+@using Oee.Application.Contracts.Reporting
+@attribute [Authorize]
+@* Route mỏng chọn loại DailyOee; toàn bộ filter/query/PDF dùng chung nằm trong ReportWorkspace. *@
+<ReportWorkspace Kind="ReportKind.DailyOee" Title="KPI theo ngày" Subtitle="OEE, thời gian tải và sản lượng hằng ngày của từng thiết bị." />

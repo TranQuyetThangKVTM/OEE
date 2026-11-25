@@ -1,0 +1,13 @@
+@namespace Oee.Web.Components.Shared
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Spacing="1" Class="table-group-heading">
+    <MudText Typo="Typo.body2" Class="table-group-code">@(Key is TableGroupKey key ? key.Code : Key?.ToString())</MudText>
+    @if (Key is TableGroupKey { Name: { Length: > 0 } name })
+    { <MudText Typo="Typo.body2" Class="table-group-name">@name</MudText> }
+    <MudText Typo="Typo.caption" Class="table-group-summary">@Count dòng trên trang này</MudText>
+</MudStack>
+
+@code {
+    [Parameter] public object? Key { get; set; }
+    [Parameter] public int Count { get; set; }
+}

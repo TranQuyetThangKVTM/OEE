@@ -1,0 +1,180 @@
+@namespace Oee.Web.Components.Pages.Plc
+@page "/plc/mappings"
+@page "/integration/plc-mappings"
+@using Oee.Application.PlcIntegration
+@using Oee.Application.Contracts.PlcIntegration
+@attribute [Authorize]
+@inject Oee.Application.Common.IUseCaseExecutor Plc
+@inject IDialogService DialogService
+
+@if (!string.IsNullOrWhiteSpace(_error))
+{
+    <MudAlert Severity="Severity.Error" Variant="Variant.Outlined" Class="mb-3">@_error</MudAlert>
+}
+<PageTitle>Ánh xạ thiết bị PLC</PageTitle>
+
+<MudStack Spacing="2" Class="plc-mapping-page">
+
+    <PageHeader Title="Ánh xạ thiết bị PLC"
+                Subtitle="Gắn mỗi mã thiết bị PLC/SCADA với một thiết bị OEE. Cấu hình các tag OPC UA (Trạng thái chạy, Bộ đếm, Mã lỗi) để hệ thống tự thu thập sản lượng và sự kiện dừng máy.">
+        <Actions>
+            <MudButton StartIcon="@Icons.Material.Filled.Refresh" Class="masan-amber"
+                       Disabled="_openingEditor" OnClick="ReloadAsync">
+                @(_openingEditor ? "ĐANG TẢI…" : "LÀM MỚI")
+            </MudButton>
+            <AuthorizeAction Policy="@Capabilities.PlcManage"><MudButton StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => OpenMappingEditorAsync(null))">
+                THÊM ÁNH XẠ
+            </MudButton></AuthorizeAction>
+        </Actions>
+        <Metrics>
+            <MetricCard Label="Ánh xạ thiết bị" Value="@_totalCount.ToString("N0")" Icon="@Icons.Material.Filled.DeviceHub" Color="Color.Info" />
+            <MetricCard Label="Có tag trên trang này" Value="@_configuredOpcUa.ToString("N0")" Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" />
+        </Metrics>
+    </PageHeader>
+
+    <MudPaper Elevation="0" Class="masan-filter">
+        <MudGrid Spacing="2" Class="align-center">
+            <MudItem xs="12" sm="6">
+                <MudTextField @bind-Value="_search" @bind-Value:after="ApplyFiltersAsync"
+                              Label="Tìm theo Mã thiết bị PLC / Thiết bị OEE"
+                              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                              Variant="Variant.Outlined" Margin="Margin.Dense" FullWidth="true"
+                              DebounceInterval="350" Immediate="true" Clearable="true" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudSelect T="bool?" @bind-Value="_activeFilter" @bind-Value:after="ApplyFiltersAsync"
+                           Label="Trạng thái" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
+                    <MudSelectItem T="bool?" Value="@((bool?)true)">Đang hoạt động</MudSelectItem>
+                    <MudSelectItem T="bool?" Value="@((bool?)false)">Ngưng</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    <MudPaper Elevation="0" Class="masan-grid oee-table-surface" Style="border:1px solid var(--masan-border);border-radius:14px;overflow:hidden;">
+        <TableToolbar TableId="plc-device-mappings-table" Title="Ánh xạ thiết bị PLC" />
+        <MudTable T="PlcDeviceMappingItem" id="plc-device-mappings-table" ServerData="LoadAsync" @ref="_table" Dense="true" Hover="true" Striped="true"
+                  FixedHeader="true" FixedFooter="true" RowsPerPage="25"
+                  Loading="_openingEditor" LoadingProgressColor="Color.Primary"
+                  Height="calc(100vh - 314px)">
+            <HeaderContent>
+                <MudTh>Mã thiết bị PLC</MudTh>
+                <MudTh>Thiết bị OEE</MudTh>
+                <MudTh>SP mặc định</MudTh>
+                <MudTh>Tag OPC UA</MudTh>
+                <MudTh>Bộ đếm</MudTh>
+                <MudTh>Định dạng mã lỗi</MudTh>
+                <MudTh>Lần đọc cuối</MudTh>
+                <MudTh>Trạng thái</MudTh>
+                <MudTh>Thao tác</MudTh>
+            </HeaderContent>
+            <RowTemplate Context="m">
+                <MudTd DataLabel="Mã thiết bị PLC" Style="font-family:ui-monospace,Consolas,monospace;font-weight:600;">@m.ExternalDeviceId</MudTd>
+                <MudTd DataLabel="Thiết bị OEE">
+                    <MudStack Row="false" Spacing="0">
+                        <MudText Typo="Typo.body2" Style="font-weight:600;">@m.WorkUnit</MudText>
+                        <MudText Typo="Typo.caption" Style="color:var(--masan-sub-ink)">@m.WorkUnitName</MudText>
+                    </MudStack>
+                </MudTd>
+                <MudTd DataLabel="SP mặc định">
+                    @if (m.DefaultProduct is { } pc)
+                    {
+                        <MudStack Row="false" Spacing="0">
+                            <MudText Typo="Typo.body2" Style="font-weight:600;">@pc</MudText>
+                            <MudText Typo="Typo.caption" Style="color:var(--masan-sub-ink)">@m.DefaultProductName</MudText>
+                        </MudStack>
+                    }
+                    else
+                    {
+                        <span style="color:var(--slate-400);font-style:italic;">(tự dò từ plan)</span>
+                    }
+                </MudTd>
+                <MudTd DataLabel="Tag OPC UA">
+                    <AuthorizeView Policy="@Capabilities.PlcManage">
+                        <NotAuthorized><MudText Typo="Typo.body2">@m.ReadTagCount/5 read · @m.WriteTagCount/9 write</MudText></NotAuthorized>
+                    </AuthorizeView>
+                    @{
+                        var nRead = m.ReadTagCount;
+                        var nWrite = m.WriteTagCount;
+                    }
+                    @if (nRead == 0 && nWrite == 0)
+                    {
+                        <AuthorizeAction Policy="@Capabilities.PlcManage"><MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Warning"
+                                   StartIcon="@Icons.Material.Filled.Settings"
+                                   OnClick="@(() => OpenEditorAsync(m.Id))" aria-label="Sửa cấu hình OPC UA">
+                            CẤU HÌNH NGAY
+                        </MudButton></AuthorizeAction>
+                    }
+                    else
+                    {
+                        <AuthorizeAction Policy="@Capabilities.PlcManage"><MudTooltip Text="@TagsTooltip(m)" Placement="Placement.Top">
+                            <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Default"
+                                       OnClick="@(() => OpenEditorAsync(m.Id))" aria-label="Sửa cấu hình OPC UA" Class="masan-tag-counts-btn">
+                                <span class="masan-tag-count masan-tag-count--in">
+                                    <MudIcon Icon="@Icons.Material.Filled.ArrowDownward" Size="Size.Small" />
+                                    @nRead/5 read
+                                </span>
+                                <span class="masan-tag-count__sep"></span>
+                                <span class="masan-tag-count masan-tag-count--out">
+                                    <MudIcon Icon="@Icons.Material.Filled.ArrowUpward" Size="Size.Small" />
+                                    @nWrite/9 write
+                                </span>
+                            </MudButton>
+                        </MudTooltip></AuthorizeAction>
+                    }
+                </MudTd>
+                <MudTd DataLabel="Bộ đếm">@CounterModeLabel(m.CounterMode)</MudTd>
+                <MudTd DataLabel="Định dạng mã lỗi">@FaultFormatLabel(m.FaultCodeFormat)</MudTd>
+                <MudTd DataLabel="Lần đọc cuối" style="color:var(--masan-sub-ink);">
+                    @(m.LastReadAt?.LocalDateTime.ToString("dd/MM HH:mm:ss") ?? "—")
+                    <MudText Typo="Typo.caption">Nhận OPC: @FormatTimestamp(m.LastReceivedAt)</MudText>
+                </MudTd>
+                <MudTd DataLabel="Trạng thái">
+                    <span class="@(m.IsActive ? "masan-status-active" : "masan-status-inactive")">
+                        @(m.IsActive ? "Hoạt động" : "Ngừng")
+                    </span>
+                    <StatusChip Text="@(m.ReadTagCount == 0 ? "Chưa cấu hình tag" : m.Connectivity)" Kind="@ConnectivityKind(m.ReadTagCount == 0 ? "NotConfigured" : m.Connectivity)" />
+                </MudTd>
+                <MudTd DataLabel="Thao tác">
+                    <AuthorizeAction Policy="@Capabilities.PlcManage">
+                        <RowActionMenu Label="Thao tác ánh xạ PLC">
+                            <RowAction Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" OnClick="@(() => OpenMappingEditorAsync(m.Id))" Label="Sửa mapping" />
+                            <RowAction Icon="@(m.IsActive ? Icons.Material.Filled.Pause : Icons.Material.Filled.PlayArrow)" OnClick="@(() => ToggleAsync(m))" Label="Bật hoặc tạm dừng mapping" />
+                            <RowAction Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(() => DeleteAsync(m))" Label="Xóa mapping" />
+                        </RowActionMenu>
+                    </AuthorizeAction>
+                </MudTd>
+            </RowTemplate>
+            <NoRecordsContent>
+                <MudStack Row="false" AlignItems="AlignItems.Center" Spacing="2" Class="pa-8">
+                    <MudIcon Icon="@Icons.Material.Filled.Sensors" Size="Size.Large"
+                             Style="color:var(--slate-300);font-size:48px;" />
+                    <MudText Typo="Typo.subtitle1" Style="color:var(--slate-700);font-weight:600;">
+                        Chưa có ánh xạ PLC
+                    </MudText>
+                    <MudText Typo="Typo.body2" Style="color:var(--slate-500);text-align:center;max-width:480px;">
+                        <b>Bước 1:</b> Bấm <b>THÊM ÁNH XẠ</b> phía trên để gắn một thiết bị PLC/SCADA
+                        (mã thiết bị) với một thiết bị OEE.
+                        <br /><br />
+                        <b>Bước 2:</b> Sau khi có ánh xạ, cột <b>Tag OPC UA</b> sẽ hiện nút
+                        <b>CẤU HÌNH NGAY</b> — bấm vào để khai báo 5 tag NodeId
+                        (Trạng thái chạy / Bộ đếm tổng / Bộ đếm lỗi / Mã lỗi / Mã sản phẩm),
+                        có nút <b>DUYỆT</b> để chọn từ namespace PLC.
+                    </MudText>
+                </MudStack>
+            </NoRecordsContent>
+            <LoadingContent>
+                <MudText Typo="Typo.body2" Style="color:var(--slate-500);padding:24px;text-align:center;">
+                    Đang tải dữ liệu…
+                </MudText>
+            </LoadingContent>
+            <PagerContent>
+                <MudTablePager PageSizeOptions="new[] { 25, 50, 100 }"
+                               RowsPerPageString="Hiển thị"
+                               InfoFormat="{first_item}–{last_item} / {all_items}" />
+            </PagerContent>
+        </MudTable>
+    </MudPaper>
+
+</MudStack>
+

@@ -1,0 +1,33 @@
+namespace Oee.Application.Contracts.Modules;
+
+/// <summary>Trạng thái realtime một máy, giữ riêng connectivity/operational và source timestamp.</summary>
+public sealed record LiveMachineItem(
+    Guid WorkUnitId,
+    string Code,
+    string Name,
+    string OperationalState,
+    string ConnectivityState,
+    decimal? Oee,
+    decimal? Availability,
+    decimal? Performance,
+    decimal? Quality,
+    decimal TotalQuantity,
+    decimal GoodQuantity,
+    decimal RejectQuantity,
+    decimal TargetQuantity,
+    decimal? PlcTotalCounter,
+    string? CurrentPlan,
+    string? CurrentProduct,
+    DateTimeOffset? LastDataAt,
+    DateTimeOffset? LastTransitionAt,
+    DateTimeOffset? DowntimeStartedAt,
+    string? DowntimeReason,
+    bool IsStale,
+    long? DataAgeSeconds,
+    LiveProductionPeriods? ProductionPeriods = null,
+    long? CounterIdleSeconds = null,
+    bool IsCounterStalled = false,
+    bool CounterDiscontinuityPending = false,
+    DateTimeOffset? CounterAcceptedAt = null,
+    decimal UnassignedGapQuantity = 0,
+    DateTimeOffset? LastCollectionGapAt = null);

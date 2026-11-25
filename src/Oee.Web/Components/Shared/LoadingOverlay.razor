@@ -1,0 +1,9 @@
+@* Overlay loading dùng role/status và aria-live; page cha sở hữu loading flag của I/O đang chạy. *@
+@if (Visible)
+{
+    <div class="loading-overlay" role="status" aria-live="polite">
+        <MudProgressCircular Color="Color.Secondary"
+                             Indeterminate="true" />
+        <span class="sr-only">@Message</span>
+    </div>
+}

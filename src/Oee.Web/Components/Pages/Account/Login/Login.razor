@@ -1,0 +1,92 @@
+@namespace Oee.Web.Components.Pages
+@page "/Account/Login"
+@attribute [AllowAnonymous]
+@layout LoginLayout
+
+@* Trang đăng nhập ẩn danh dùng native HTTP POST tới /account/sign-in để ASP.NET Identity
+   có thể phát cookie xác thực HttpOnly trong response. AntiforgeryToken bảo vệ request thay đổi trạng thái;
+   mật khẩu không đi qua DTO Blazor, không được ghi log hoặc audit. *@
+<PageTitle>Đăng nhập · Tân Tiến OEE</PageTitle>
+
+<main class="login-shell">
+    <section class="login-hero" aria-labelledby="system-title">
+        <div class="login-identity">
+            <img src="@Assets["branding/tan-tien-logo.png"]" class="login-logo" alt="Tân Tiến" width="112" height="112" />
+            <div>
+                <p class="login-eyebrow">Production Intelligence</p>
+                <h1 id="system-title">OEE Management System</h1>
+                <p>Real-time Production Monitoring</p>
+            </div>
+        </div>
+
+        <div class="login-message">
+            <h2>Hiệu suất rõ ràng. Quyết định chính xác.</h2>
+            <p>Theo dõi OEE, sản lượng và tổn thất thiết bị trên một nền tảng vận hành thống nhất, bảo mật theo vai trò.</p>
+            <div class="login-capabilities" aria-label="Khả năng hệ thống">
+                <div class="login-capability"><strong>60 giây</strong><span>Chu kỳ snapshot mặc định</span></div>
+                <div class="login-capability"><strong>11</strong><span>Báo cáo PDF nghiệp vụ</span></div>
+                <div class="login-capability"><strong>4 vai trò</strong><span>Phân quyền theo capability</span></div>
+            </div>
+        </div>
+
+        <span class="login-copyright">OEE / Real-time Production Monitoring · Dữ liệu vận hành được kiểm soát truy cập</span>
+    </section>
+
+    <section class="login-panel" aria-labelledby="login-title">
+        <div class="login-card">
+            <div class="login-card__mobile-brand">
+                <img src="@Assets["branding/tan-tien-logo.png"]" alt="Tân Tiến" width="44" height="44" />
+                <strong>Tân Tiến · OEE</strong>
+            </div>
+            <h2 id="login-title">Chào mừng trở lại</h2>
+            <p class="login-intro">Đăng nhập để truy cập bảng điều khiển sản xuất.</p>
+
+            @if (!string.IsNullOrEmpty(ErrorMessage))
+            {
+                <MudAlert role="alert"
+                          Class="mb-3" Dense="true"
+                          Severity="Severity.Error">@ErrorMessage</MudAlert>
+            }
+
+            <form method="post" action="/account/sign-in" data-enhance="false" class="login-form">
+                <AntiforgeryToken />
+                <input type="hidden" name="returnUrl" value="@SafeReturnUrl" />
+
+                <label for="userName">Tên đăng nhập</label>
+                <div class="login-control">
+                    <input id="userName" name="userName" type="text" autocomplete="username" maxlength="256"
+                           required autofocus aria-required="true" placeholder="Nhập tên đăng nhập" />
+                </div>
+
+                <label for="password">Mật khẩu</label>
+                <div class="login-control login-control--password">
+                    <input id="password" name="password" type="password"
+                           autocomplete="current-password" maxlength="128" required aria-required="true"
+                           placeholder="Nhập mật khẩu" />
+                    <button type="button" class="password-toggle" data-password-toggle="password"
+                            aria-label="Hiện mật khẩu" aria-pressed="false">
+                        <MudIcon Size="Size.Small"
+                                 Icon="@Icons.Material.Filled.Visibility" />
+                    </button>
+                </div>
+
+                <label class="remember-row" for="rememberMe">
+                    <input id="rememberMe" name="rememberMe" type="checkbox" value="true" />
+                    <span>Ghi nhớ thiết bị này</span>
+                </label>
+
+                <MudButton FullWidth="true" Size="Size.Large" Class="login-submit"
+                           Variant="Variant.Filled" Color="Color.Primary"
+                           ButtonType="ButtonType.Submit">
+                    Đăng nhập
+                </MudButton>
+            </form>
+
+            <p class="login-security">
+                <MudIcon Size="Size.Small"
+                         Icon="@Icons.Material.Filled.Lock" />
+                <span>Phiên đăng nhập dùng cookie HttpOnly, giới hạn 8 giờ và khóa tài khoản khi vượt ngưỡng đăng nhập sai.</span>
+            </p>
+        </div>
+    </section>
+</main>

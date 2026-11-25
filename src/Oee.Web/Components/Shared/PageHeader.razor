@@ -1,0 +1,33 @@
+@* Header dùng chung: tiêu đề, mô tả, action và callback làm mới từ trang cha. *@
+<MudPaper Class="oee-page-header" Elevation="1">
+    <MudStack Row="true" Wrap="Wrap.Wrap" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Spacing="2">
+        <MudStack Spacing="0">
+            <MudText Typo="Typo.h5" HtmlTag="h1">@Title</MudText>
+            @if (!string.IsNullOrWhiteSpace(Subtitle))
+            {
+                <MudText Typo="Typo.body2" Class="oee-page-header__subtitle">@Subtitle</MudText>
+            }
+        </MudStack>
+
+        <MudStack Row="true" Wrap="Wrap.Wrap" Spacing="1" AlignItems="AlignItems.Center">
+            @Actions
+            @if (OnRefresh.HasDelegate)
+            {
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Refresh"
+                           Disabled="@RefreshDisabled"
+                           OnClick="OnRefresh">
+                    Làm mới
+                </MudButton>
+            }
+        </MudStack>
+    </MudStack>
+</MudPaper>
+
+@if (Metrics is not null)
+{
+    <MudStack Row="true" Wrap="Wrap.Wrap" Spacing="1" Class="page-kpi-strip" role="group" aria-label="Thống kê trang">
+        @Metrics
+    </MudStack>
+}
+
+@* Code-behind *@

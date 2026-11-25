@@ -1,0 +1,118 @@
+@namespace Oee.Web.Components.Pages.Plc
+@using Oee.Application.Reporting
+@using Oee.Application.Contracts.Reporting
+@inject Oee.Application.Common.IUseCaseExecutor Importer
+@inject NavigationManager Navigation
+
+@* Dialog import XLSX theo hai bước: dry-run/preview rồi mới commit transaction.
+   ClosedXML và validation nằm trong Application/Infrastructure; UI giữ byte file tạm thời và không tự ghi SQL. *@
+<MudDialog>
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.UploadFile" Color="Color.Primary" />
+            <MudText Typo="Typo.h6">Import ánh xạ mã lỗi PLC</MudText>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        <MudAlert Dense="true" Class="mb-3"
+                  Severity="Severity.Info">
+            Nhận file .xlsx với các cột <b>FaultCode, DowntimeReasonId</b>; tùy chọn
+            <b>WorkUnitId, Description, IsActive, IsDeleted</b> như source gốc.
+            Hoặc dùng mẫu <b>WorkUnitCode, FaultCode, ReasonCode</b> bằng nút tải bên dưới.
+            Để trống thiết bị để áp dụng chung. Kiểm tra trước khi lưu; không nhận formula/macro.
+        </MudAlert>
+
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3" Class="flex-wrap">
+            <MudButton StartIcon="@Icons.Material.Filled.Download"
+                       OnClick="DownloadTemplate">
+                Tải template
+            </MudButton>
+            <MudFileUpload T="IBrowserFile" FilesChanged="PreviewFileAsync" Accept=".xlsx" Disabled="_loading">
+                <CustomContent Context="upload">
+                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.AttachFile" OnClick="upload.OpenFilePickerAsync">
+                        Chọn file Excel
+                    </MudButton>
+                </CustomContent>
+            </MudFileUpload>
+            <MudText Typo="Typo.caption">@(_selectedFileName ?? "Chưa chọn file · tối đa 5 MB")</MudText>
+        </MudStack>
+
+        @if (!string.IsNullOrWhiteSpace(_error))
+        {
+            <MudAlert Dense="true"
+                      Severity="Severity.Error" Variant="Variant.Outlined">@_error</MudAlert>
+        }
+
+        @if (_loading)
+        {
+            <LoadingOverlay Visible="true" />
+        }
+
+        @if (_preview is not null)
+        {
+            <MudText Class="mt-4"
+                     Typo="Typo.subtitle1">
+                Kiểm tra file: @_preview.TotalRows dòng · @_preview.ValidRows.Count hợp lệ · @_preview.Issues.Count lỗi
+            </MudText>
+
+            @if (_preview.Issues.Count > 0)
+            {
+                <MudTable Items="_preview.Issues.Take(100)"
+                          Dense="true" Height="260px" FixedHeader="true">
+                    <HeaderContent>
+                        <MudTh>Dòng</MudTh>
+                        <MudTh>Cột</MudTh>
+                        <MudTh>Mã lỗi</MudTh>
+                        <MudTh>Chi tiết</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Dòng">@context.RowNumber</MudTd>
+                        <MudTd DataLabel="Cột">@context.Field</MudTd>
+                        <MudTd DataLabel="Mã lỗi">@context.Code</MudTd>
+                        <MudTd DataLabel="Chi tiết">@context.Message</MudTd>
+                    </RowTemplate>
+                </MudTable>
+            }
+            else
+            {
+                <MudAlert Dense="true"
+                          Severity="Severity.Success">
+                    File hợp lệ và sẵn sàng import. Import lại cùng dữ liệu là idempotent.
+                </MudAlert>
+                <MudTable Items="_preview.ValidRows.Take(25)"
+                          Dense="true">
+                    <HeaderContent>
+                        <MudTh>Dòng</MudTh>
+                        <MudTh>Scope</MudTh>
+                        <MudTh>Fault</MudTh>
+                        <MudTh>Reason</MudTh>
+                        <MudTh>Status</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Dòng">@context.RowNumber</MudTd>
+                        <MudTd DataLabel="Scope">@(context.WorkUnitCode ?? "Global")</MudTd>
+                        <MudTd DataLabel="Fault">@context.FaultCode</MudTd>
+                        <MudTd DataLabel="Reason">@context.ReasonCode</MudTd>
+                        <MudTd DataLabel="Status">@(context.IsActive ? "Active" : "Paused")</MudTd>
+                    </RowTemplate>
+                </MudTable>
+            }
+        }
+
+        @if (_result is not null)
+        {
+            <MudAlert Class="mt-3"
+                      Severity="Severity.Success">
+                Đã import: @_result.Inserted thêm, @_result.Updated cập nhật, @_result.Skipped không đổi.
+            </MudAlert>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Đóng</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled"
+                   Disabled="@(_loading || _fileBytes is null || _preview is null || _preview.Issues.Count > 0)"
+                   OnClick="CommitAsync">
+            Bắt đầu import
+        </MudButton>
+    </DialogActions>
+</MudDialog>

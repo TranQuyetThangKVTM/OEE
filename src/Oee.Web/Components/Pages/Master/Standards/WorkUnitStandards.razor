@@ -1,0 +1,113 @@
+@namespace Oee.Web.Components.Pages.Master
+@page "/master/work-unit-standards"
+@using Oee.Application.Contracts.Modules
+@using Oee.Application.Contracts.Operations
+@attribute [Authorize]
+@inject Oee.Application.Modules.IMasterDataQueryService Query
+@inject Oee.Application.Common.IUseCaseExecutor Commands
+@inject IDialogService DialogService
+
+@* Trang quản lý các phiên bản tốc độ chuẩn theo cặp Thiết bị × SKU.
+   Quyền MasterDataRead cho phép xem; mọi nút thay đổi được bao bởi MasterDataWrite và
+   Application Service tiếp tục kiểm tra quyền, khoảng hiệu lực, RowVersion và tham chiếu SQL. *@
+<PageTitle>Định mức tốc độ</PageTitle>
+
+<PageHeader OnRefresh="ReloadAsync" Title="Định mức tốc độ"
+            Subtitle="Phiên bản định mức theo Thiết bị × SKU; khoảng hiệu lực không được chồng lấn">
+    <Actions>
+        <AuthorizeAction Policy="@Capabilities.MasterDataWrite">
+            <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Add"
+                       OnClick="OpenCreateDialogAsync">
+                Thêm phiên bản
+            </MudButton>
+        </AuthorizeAction>
+    </Actions>
+    <Metrics><MetricCard Label="Phiên bản định mức" Value="@_totalCount.ToString("N0")" Icon="@Icons.Material.Filled.Speed" Color="Color.Info" /></Metrics>
+</PageHeader>
+
+@if (!string.IsNullOrWhiteSpace(_error))
+{
+    <MudAlert Dense="true" Class="my-3"
+              Severity="Severity.Error" Variant="Variant.Outlined">@_error</MudAlert>
+}
+
+<PageFilter>
+    <MudTextField T="string" @bind-Value="_search" Label="Thiết bị hoặc SKU"
+                  Immediate="true" DebounceInterval="500"
+                  @bind-Value:after="ApplyFiltersAsync" />
+    <MudSelect T="string" @bind-Value="_workUnitId" Label="Thiết bị"
+               Clearable="true"
+               @bind-Value:after="ApplyFiltersAsync">
+        @foreach (MasterLookupOption option in _lookups?.WorkUnits ?? [])
+        {
+            <MudSelectItem Value="@option.Id.ToString()">@option.Code · @option.Name</MudSelectItem>
+        }
+    </MudSelect>
+    <MudSelect T="string" @bind-Value="_productId" Label="Sản phẩm"
+               Clearable="true"
+               @bind-Value:after="ApplyFiltersAsync">
+        @foreach (MasterLookupOption option in _lookups?.Products ?? [])
+        {
+            <MudSelectItem Value="@option.Id.ToString()">@option.Code · @option.Name</MudSelectItem>
+        }
+    </MudSelect>
+    <MudCheckBox T="bool" @bind-Value="_effectiveOnly" Label="Đang hiệu lực"
+                 @bind-Value:after="ApplyFiltersAsync" />
+</PageFilter>
+
+
+<PageTable TItem="WorkUnitStandardListItem"
+             GroupBy="_grouping.Definition" GroupColumnSpan="8"
+             @ref="_table"
+             ItemsProvider="LoadAsync"
+             AriaLabel="Danh sách định mức tốc độ"
+             EmptyTitle="Không có định mức phù hợp">
+    <ToolbarContent>
+        <TableGroupingSelector Value="_grouping.Mode" ValueChanged="_grouping.SetMode"
+                               ExpandAll="() => _table?.ExpandAllGroups()" CollapseAll="() => _table?.CollapseAllGroups()" />
+    </ToolbarContent>
+    <HeaderContent>
+        <MudTh><MudTableSortLabel T="WorkUnitStandardListItem" SortLabel="workunit">Thiết bị</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="WorkUnitStandardListItem" SortLabel="product">Sản phẩm</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="WorkUnitStandardListItem" SortLabel="speed">Tốc độ/phút</MudTableSortLabel></MudTh>
+        <MudTh>Tốc độ/giờ</MudTh>
+        <MudTh>Đơn vị</MudTh>
+        <MudTh><MudTableSortLabel T="WorkUnitStandardListItem" SortLabel="effective">Hiệu lực</MudTableSortLabel></MudTh>
+        <MudTh>Trạng thái</MudTh>
+        <MudTh>Thao tác</MudTh>
+    </HeaderContent>
+    <RowTemplate Context="item">
+        <MudTd DataLabel="Thiết bị">@item.WorkUnit</MudTd>
+        <MudTd DataLabel="Sản phẩm">@item.Product</MudTd>
+        <MudTd DataLabel="Tốc độ/phút">@item.SpeedPerMinute.ToString("#,0.####")</MudTd>
+        <MudTd DataLabel="Tốc độ/giờ">@item.SpeedPerHour.ToString("#,0.####")</MudTd>
+        <MudTd DataLabel="Đơn vị">@item.Uom</MudTd>
+        <MudTd DataLabel="Hiệu lực">
+            @item.EffectiveFrom.ToString("dd/MM/yyyy") →
+            @(item.EffectiveTo?.ToString("dd/MM/yyyy") ?? "Không giới hạn")
+            <small class="table-subline">@item.ApprovedBy</small>
+        </MudTd>
+        <MudTd DataLabel="Trạng thái">
+            <StatusChip Text="@(item.IsEffective ? "Đang hiệu lực" : "Lịch sử/Tương lai")"
+                        Kind="@(item.IsEffective ? SemanticKind.Success : SemanticKind.Neutral)" />
+        </MudTd>
+        <MudTd DataLabel="Thao tác">
+            <AuthorizeAction Policy="@Capabilities.MasterDataWrite">
+                <RowActionMenu Label="@($"Thao tác định mức {item.WorkUnit} {item.Product}")">
+                    <RowAction Label="Sao chép định mức"
+                               Icon="@Icons.Material.Filled.ContentCopy" Color="Color.Primary"
+                               OnClick="@(() => CopyAsync(item))" />
+                    @if (item.EffectiveTo is null)
+                    {
+                        <RowAction Label="Kết thúc hiệu lực định mức"
+                                   Icon="@Icons.Material.Filled.StopCircle" Color="Color.Warning"
+                                   OnClick="@(() => EndEffectivenessAsync(item))" />
+                    }
+                    <RowAction Label="Xóa định mức"
+                               Icon="@Icons.Material.Filled.Delete" Color="Color.Error"
+                               OnClick="@(() => DeleteAsync(item))" />
+                </RowActionMenu>
+            </AuthorizeAction>
+        </MudTd>
+    </RowTemplate>
+</PageTable>

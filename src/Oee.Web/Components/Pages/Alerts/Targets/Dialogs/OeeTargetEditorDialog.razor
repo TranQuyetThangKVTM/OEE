@@ -1,0 +1,45 @@
+@namespace Oee.Web.Components.Pages.Alerts
+@using Oee.Application.Contracts.Modules
+@inject Oee.Application.Common.IUseCaseExecutor Service
+@inject Microsoft.AspNetCore.Authorization.IAuthorizationService Authorization
+@inject Microsoft.AspNetCore.Components.Authorization.AuthenticationStateProvider Authentication
+
+<MudDialog>
+ <TitleContent><MudText Typo="Typo.h6">@Title</MudText></TitleContent>
+ <DialogContent>
+  <MudAlert Severity="Severity.Info" Dense="true" Class="mb-4">Tỷ lệ nhập theo thang 0–100%; dữ liệu lưu nhất quán theo thang 0–1.</MudAlert>
+  @if (!string.IsNullOrWhiteSpace(_error)) { <MudAlert Severity="Severity.Error" Variant="Variant.Outlined" Dense="true" Class="mb-3">@_error</MudAlert> }
+  <MudForm @ref="_mudForm" @bind-IsValid="_valid">
+   <MudStack Spacing="3" Class="py-2"><MudGrid Spacing="3">
+ <MudItem xs="12" sm="6"><MudSelect T="string" @bind-Value="_form.ScopeType" Label="Phạm vi">
+  <MudSelectItem Value="@("Global")">Toàn cục</MudSelectItem><MudSelectItem Value="@("Site")">Nhà máy</MudSelectItem><MudSelectItem Value="@("WorkUnit")">Thiết bị</MudSelectItem>
+ </MudSelect></MudItem>
+ @if (_form.ScopeType == "Site") {
+  <MudItem xs="12" sm="6"><MudSelect T="string" @bind-Value="_form.ScopeId" Label="Nhà máy" Required="true">
+   @foreach (MasterLookupOption site in Lookups?.Sites ?? []) { <MudSelectItem Value="@site.Id.ToString()">@site.Code · @site.Name</MudSelectItem> }
+  </MudSelect></MudItem>
+ } else if (_form.ScopeType == "WorkUnit") {
+  <MudItem xs="12" sm="6"><MudSelect T="string" @bind-Value="_form.ScopeId" Label="Thiết bị" Required="true">
+   @foreach (MasterLookupOption workUnit in Lookups?.WorkUnits ?? []) { <MudSelectItem Value="@workUnit.Id.ToString()">@workUnit.Code · @workUnit.Name</MudSelectItem> }
+  </MudSelect></MudItem>
+ }
+ <MudItem xs="12" sm="6"><MudSelect T="string" @bind-Value="_form.PeriodCode" Label="Kỳ">
+  <MudSelectItem Value="@("DAY")">Ngày</MudSelectItem><MudSelectItem Value="@("S1")">S1 · Sáng</MudSelectItem><MudSelectItem Value="@("S2")">S2 · Chiều</MudSelectItem><MudSelectItem Value="@("S3")">S3 · Đêm</MudSelectItem><MudSelectItem Value="@("SHIFT")">Mọi ca</MudSelectItem>
+ </MudSelect></MudItem>
+ <MudItem xs="6"><MudNumericField T="decimal" @bind-Value="_form.Oee" Label="OEE (%)" Min="0" Max="100" Required="true" /></MudItem>
+ <MudItem xs="6"><MudNumericField T="decimal" @bind-Value="_form.Availability" Label="A (%)" Min="0" Max="100" Required="true" /></MudItem>
+ <MudItem xs="6"><MudNumericField T="decimal" @bind-Value="_form.Performance" Label="P (%)" Min="0" Max="100" Required="true" /></MudItem>
+ <MudItem xs="6"><MudNumericField T="decimal" @bind-Value="_form.Quality" Label="Q (%)" Min="0" Max="100" Required="true" /></MudItem>
+ <MudItem xs="12" sm="6"><MudDatePicker @bind-Date="_form.From" Label="Hiệu lực từ" Required="true" /></MudItem>
+ <MudItem xs="12" sm="6"><MudDatePicker @bind-Date="_form.To" Label="Hiệu lực đến" Clearable="true" /></MudItem>
+ <MudItem xs="12"><MudTextField @bind-Value="_form.Note" Label="Ghi chú" MaxLength="500" Lines="3" /></MudItem>
+</MudGrid></MudStack>
+  </MudForm>
+ </DialogContent>
+ <DialogActions>
+  <MudButton OnClick="Cancel" Disabled="_saving">Hủy</MudButton>
+  <AuthorizeAction Policy="@Capabilities.TargetsManage">
+   <MudButton OnClick="SaveAsync" Disabled="_saving" Variant="Variant.Filled" Color="Color.Primary">Lưu phiên bản</MudButton>
+  </AuthorizeAction>
+ </DialogActions>
+</MudDialog>

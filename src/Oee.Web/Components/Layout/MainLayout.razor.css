@@ -1,0 +1,6 @@
+/* Fallback active style ở layout; AppNavigation.razor.css bổ sung style chi tiết hơn cho menu phân cấp. */
+::deep .mud-nav-link.active {
+  border-left: 3px solid var(--oee-cyan-400);
+  background: rgb(0 212 238 / 14%);
+  color: var(--oee-surface);
+}

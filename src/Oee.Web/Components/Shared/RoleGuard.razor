@@ -1,0 +1,9 @@
+@* Wrapper AuthorizeView dùng chung cho action/section. Đây là lớp UX; backend vẫn enforce policy độc lập. *@
+<AuthorizeView Policy="@Policy">
+    <Authorized>
+        @ChildContent
+    </Authorized>
+    <NotAuthorized>
+        @Unauthorized
+    </NotAuthorized>
+</AuthorizeView>

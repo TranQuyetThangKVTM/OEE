@@ -1,0 +1,6 @@
+@namespace Oee.Web.Components.Pages.Reports
+@page "/reports/quality-loss"
+@using Oee.Application.Contracts.Reporting
+@attribute [Authorize]
+@* Route cấu hình báo cáo tổn thất chất lượng; không tính Quality trực tiếp trong component. *@
+<ReportWorkspace Kind="ReportKind.QualityLoss" Title="Tổn thất chất lượng" />

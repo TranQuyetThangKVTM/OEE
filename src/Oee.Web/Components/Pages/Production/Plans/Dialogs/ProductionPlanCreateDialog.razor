@@ -1,0 +1,67 @@
+@namespace Oee.Web.Components.Pages.Production
+@inject ProductionPlanCreationRunner Runner
+@inject IAuthorizationService Authorization
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <TitleContent><MudText Typo="Typo.h6">Thêm kế hoạch sản xuất</MudText></TitleContent>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_formValid">
+            <MudStack Spacing="2">
+                <MudAlert Severity="Severity.Info" Dense="true">
+                    Tạo một kế hoạch cho mỗi tổ hợp <MudElement HtmlTag="strong">Thiết bị × Ca</MudElement> trong ngày áp dụng.
+                    Tổ hợp trùng được bỏ qua; xung đột không bị ghi đè.
+                </MudAlert>
+                @if (_error is not null)
+                {
+                    <MudAlert Severity="Severity.Error" Dense="true">@_error</MudAlert>
+                }
+                @if (_loading)
+                {
+                    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+                }
+                <MudSelect T="Guid" Label="Thiết bị / dây chuyền" @bind-SelectedValues="_selectedWorkUnits"
+                           MultiSelection="true" Required="true" Disabled="_loading || _saving"
+                           HelperText="@($"Đã chọn {_selectedWorkUnits.Distinct().Count()} thiết bị.")">
+                    @foreach (var option in _lookups?.WorkUnits ?? [])
+                    {
+                        <MudSelectItem T="Guid" Value="@option.Id">@option.Code — @option.Name</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudSelect T="Guid?" Label="Sản phẩm (SKU)" @bind-Value="_productId"
+                           Required="true" Disabled="_loading || _saving">
+                    @foreach (var option in _lookups?.Products ?? [])
+                    {
+                        <MudSelectItem T="Guid?" Value="@((Guid?)option.Id)">@option.Code — @option.Name</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudSelect T="Guid" Label="Ca làm việc" @bind-SelectedValues="_selectedShifts"
+                           MultiSelection="true" Required="true" Disabled="_loading || _saving"
+                           HelperText="@($"Đã chọn {_selectedShifts.Distinct().Count()} ca. Ca đêm kết thúc sang ngày hôm sau, theo múi giờ nhà máy.")">
+                    @foreach (var option in _lookups?.Shifts ?? [])
+                    {
+                        <MudSelectItem T="Guid" Value="@option.Id">@ShiftLabel(option)</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudDatePicker Label="Ngày áp dụng" @bind-Date="_appliedDate" Required="true"
+                               DateFormat="dd/MM/yyyy" Disabled="_loading || _saving" />
+                <MudNumericField T="decimal?" Label="Sản lượng kế hoạch (mỗi thiết bị × ca)" @bind-Value="_quantity"
+                                 Min="0.0001m" Required="true" Disabled="_loading || _saving" />
+                <MudTextField T="string" Label="Ghi chú" @bind-Value="_notes" MaxLength="500"
+                              Lines="2" Disabled="_loading || _saving" />
+            </MudStack>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Disabled="_saving">Hủy</MudButton>
+        <MudButton OnClick="SaveAsync" Disabled="_loading || _saving" Color="Color.Primary"
+                   Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Save">
+            @if (_saving)
+            {
+                <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-2" />
+            }
+            Lưu
+        </MudButton>
+    </DialogActions>
+</MudDialog>

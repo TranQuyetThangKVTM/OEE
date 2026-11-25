@@ -1,0 +1,56 @@
+@namespace Oee.Web.Components.Pages.Production
+@using Microsoft.EntityFrameworkCore
+@using Oee.Application.Contracts.Modules
+@using Oee.Application.Contracts.Operations
+@inject Oee.Application.Common.IUseCaseExecutor Commands
+
+<MudDialog>
+    <TitleContent><MudText Typo="Typo.h6">Cập nhật dòng mẫu</MudText></TitleContent>
+    <DialogContent>
+        @if (!string.IsNullOrWhiteSpace(error))
+        {
+            <MudAlert Dense="true" Class="mb-3"
+                      Severity="Severity.Error" Variant="Variant.Outlined">@error</MudAlert>
+        }
+        <MudForm @ref="form">
+            <MudStack Spacing="2">
+                <MudSelect T="Guid?" Value="@workUnitId" Label="Thiết bị"
+                           Margin="Margin.Dense"
+                           Variant="Variant.Outlined"
+                           Required="true" RequiredError="Chọn thiết bị." Disabled="@saving"
+                           ValueChanged="WorkUnitChanged">
+                    @foreach (var option in Lookups.WorkUnits)
+                    { <MudSelectItem T="Guid?" Value="@((Guid?)option.Id)">@option.Code — @option.Name</MudSelectItem> }
+                </MudSelect>
+                <MudSelect T="Guid?" @bind-Value="productId" Label="Sản phẩm (SKU)"
+                           Margin="Margin.Dense"
+                           Variant="Variant.Outlined"
+                           Required="true" RequiredError="Chọn sản phẩm." Disabled="@saving">
+                    @foreach (var option in Lookups.Products)
+                    { <MudSelectItem T="Guid?" Value="@((Guid?)option.Id)">@option.Code — @option.Name</MudSelectItem> }
+                </MudSelect>
+                <MudSelect T="Guid?" @bind-Value="shiftId" Label="Ca"
+                           Margin="Margin.Dense"
+                           Variant="Variant.Outlined"
+                           Required="true" RequiredError="Chọn ca." Disabled="@saving">
+                    @foreach (var option in AvailableShifts)
+                    { <MudSelectItem T="Guid?" Value="@((Guid?)option.Id)">@ShiftText(option)</MudSelectItem> }
+                </MudSelect>
+                <MudNumericField T="decimal" @bind-Value="quantity" Label="Sản lượng kế hoạch"
+                                 Margin="Margin.Dense"
+                                 Variant="Variant.Outlined" Format="N4"
+                                 Min="0.0001m" Required="true" Disabled="@saving" />
+                <MudTextField T="string" @bind-Value="notes" Label="Ghi chú"
+                              Margin="Margin.Dense" Lines="2"
+                              Variant="Variant.Outlined"
+                              MaxLength="500" Disabled="@saving" />
+            </MudStack>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Disabled="@saving" OnClick="Cancel">Hủy</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                   Disabled="@saving"
+                   OnClick="SaveAsync">@(saving ? "Đang lưu…" : "Lưu")</MudButton>
+    </DialogActions>
+</MudDialog>

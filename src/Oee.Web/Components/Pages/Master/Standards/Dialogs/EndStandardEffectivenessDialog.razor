@@ -1,0 +1,44 @@
+@namespace Oee.Web.Components.Pages.Master
+@using Oee.Application.Contracts.Modules
+@using Oee.Application.Contracts.Operations
+@inject Oee.Application.Modules.IMasterDataQueryService Query
+@inject Oee.Application.Common.IUseCaseExecutor Commands
+@inject IAuthorizationService Authorization
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ISnackbar Snackbar
+
+@* Dialog kết thúc hiệu lực WorkUnitStandard: tải DTO theo Id, chọn EffectiveTo và gửi RowVersion.
+   Không chỉnh Speed của bản ghi đã có hiệu lực; thay đổi tốc độ phải tạo version mới. *@
+<MudDialog>
+    <TitleContent><MudText Typo="Typo.h6">Kết thúc hiệu lực định mức</MudText></TitleContent>
+    <DialogContent>
+        @if (_loading) { <MudStack AlignItems="AlignItems.Center" Class="pa-5"><MudProgressCircular Indeterminate="true" /></MudStack> }
+        else if (!string.IsNullOrWhiteSpace(_loadError)) { <MudAlert Severity="Severity.Error">@_loadError</MudAlert> }
+        else
+        {
+            <MudForm @ref="_form" @bind-IsValid="_valid">
+                @if (!string.IsNullOrWhiteSpace(_saveError)) { <MudAlert Class="mb-3"
+                          Severity="Severity.Error">@_saveError</MudAlert> }
+                <MudGrid>
+                    <MudItem xs="6"><MudText Typo="Typo.caption">Thiết bị</MudText><MudText><strong>@_item?.WorkUnit</strong></MudText></MudItem>
+                    <MudItem xs="6"><MudText Typo="Typo.caption">SKU</MudText><MudText><strong>@_item?.Product</strong></MudText></MudItem>
+                    <MudItem xs="6"><MudText Typo="Typo.caption">Tốc độ/phút</MudText><MudText>@_item?.SpeedPerMinute.ToString("N4") @_item?.Uom</MudText></MudItem>
+                    <MudItem xs="6"><MudText Typo="Typo.caption">Hiệu lực từ</MudText><MudText>@_item?.EffectiveFrom.ToString("dd/MM/yyyy")</MudText></MudItem>
+                    <MudItem xs="12"><MudDatePicker Label="Hiệu lực đến" @bind-Date="_effectiveTo"
+                                   Required="true" MinDate="@MinDate" MaxDate="@DateTime.Today" /></MudItem>
+                </MudGrid>
+            </MudForm>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton Disabled="_saving"
+                   OnClick="Cancel">Hủy</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Warning"
+                   Disabled="@(_loading || _saving || !_valid || !string.IsNullOrWhiteSpace(_loadError))"
+                   OnClick="SaveAsync">
+            @if (_saving) { <MudProgressCircular Size="Size.Small" Class="mr-2"
+                                 Indeterminate="true" /> }
+            Kết thúc hiệu lực
+        </MudButton>
+    </DialogActions>
+</MudDialog>

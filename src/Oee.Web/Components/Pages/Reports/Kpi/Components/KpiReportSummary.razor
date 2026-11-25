@@ -1,0 +1,44 @@
+@namespace Oee.Web.Components.Pages.Reports
+@using System.Globalization
+@using Oee.Application.Contracts.Reporting
+@using ChartSeries = MudBlazor.ChartSeries<double>
+
+<div class="report-kpi-strip mb-3" role="group" aria-label="Chỉ số báo cáo">
+    @foreach (var metric in Data.Metrics)
+    {
+        <MetricCard Label="@metric.Label" Value="@Format(metric)" Description="@Description(metric)"
+                    Icon="@MetricIcon(metric.Key)" Color="@(metric.Key is "oee-low" or "failures" ? Color.Error : Color.Primary)" />
+    }
+</div>
+@if (Data.HasData && Data.Kind != ReportKind.Reliability)
+{
+    <MudPaper Outlined="true" Elevation="0" Class="kpi-trend pa-4 mb-3">
+        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Class="mb-3">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                <MudIcon Icon="@Icons.Material.Filled.ShowChart" Color="Color.Primary" Size="Size.Small" />
+                <MudText Typo="Typo.subtitle1" Class="kpi-emphasis">@ChartTitle</MudText>
+                <MudChip T="string" Variant="Variant.Outlined" Size="Size.Small">@Data.Trend.Count @Period</MudChip>
+            </MudStack>
+            <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+                <MudText Typo="Typo.caption" Class="kpi-muted">Mục tiêu OEE: 85%</MudText>
+                <MudText Typo="Typo.body2" Color="@(Change is null ? Color.Default : Change >= 0 ? Color.Success : Color.Error)" Class="kpi-emphasis">@ChangeText</MudText>
+            </MudStack>
+        </MudStack>
+        @if (series.Count == 0)
+        {
+            <EmptyState Title="Chưa đủ dữ liệu để vẽ xu hướng" />
+        }
+        else
+        {
+            <MudChart T="double" ChartType="ChartType.Line" ChartSeries="series"
+                      ChartLabels="labels" ChartOptions="lineOptions" Width="100%" Height="300px" />
+        }
+        <MudDivider Class="my-3" />
+        <MudStack Row="true" Justify="Justify.SpaceBetween" Wrap="Wrap.Wrap" Spacing="2">
+            <MudText Typo="Typo.caption" Class="kpi-muted">Đạt mục tiêu: @Data.Trend.Count(x => x.Oee >= .85m) / @Data.Trend.Count @Period</MudText>
+            <MudText Typo="Typo.caption" Class="kpi-muted">A · Sẵn sàng &nbsp; P · Hiệu suất &nbsp; Q · Chất lượng</MudText>
+            @if (labels.Length < Data.Trend.Count)
+            { <MudText Typo="Typo.caption" Color="Color.Warning">Biểu đồ hiển thị @labels.Length / @Data.Trend.Count kỳ đủ dữ liệu.</MudText> }
+        </MudStack>
+    </MudPaper>
+}

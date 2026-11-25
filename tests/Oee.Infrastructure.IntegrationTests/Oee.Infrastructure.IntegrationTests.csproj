@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\tools\Oee.DatabaseMigrator\Oee.DatabaseMigrator.csproj" Aliases="migrator" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="PdfPig" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Oee.Infrastructure\Oee.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Oee.Web\Oee.Web.csproj" />
+  </ItemGroup>
+
+</Project>

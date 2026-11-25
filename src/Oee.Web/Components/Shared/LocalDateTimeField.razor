@@ -1,0 +1,12 @@
+@namespace Oee.Web.Components.Shared
+
+<MudGrid Spacing="1">
+    <MudItem xs="7">
+        <MudDatePicker Date="Value.Date" DateChanged="SetDateAsync" Label="@($"{Label} · ngày")"
+                       DateFormat="dd/MM/yyyy" Required="true" Disabled="Disabled" />
+    </MudItem>
+    <MudItem xs="5">
+        <MudTimePicker Time="Value.TimeOfDay" TimeChanged="SetTimeAsync" Label="@($"{Label} · giờ")"
+                       AmPm="false" Required="true" Disabled="Disabled" />
+    </MudItem>
+</MudGrid>

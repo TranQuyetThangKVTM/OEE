@@ -1,0 +1,6 @@
+@* Chip dùng chung theo đúng mẫu trang Enterprise: component MudBlazor trực tiếp và màu lấy từ SemanticKind. *@
+<MudChip T="string"
+         Size="@Size" Class="@($"status-chip status-chip--{Kind.ToString().ToLowerInvariant()}")"
+         Color="@ColorValue" Variant="Variant.Filled">
+    @Text
+</MudChip>

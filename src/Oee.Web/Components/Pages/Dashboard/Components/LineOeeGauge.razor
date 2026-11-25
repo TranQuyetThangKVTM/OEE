@@ -1,0 +1,39 @@
+@namespace Oee.Web.Components.Pages.Dashboard.Components
+@using Oee.Application.Modules
+
+<MudPaper Class="line-oee-gauge" Outlined="true" Elevation="0">
+    <MudStack Spacing="0" AlignItems="AlignItems.Center">
+        <MudText Typo="Typo.subtitle2">@Title</MudText>
+        <MudText Typo="Typo.caption">@Period</MudText>
+    </MudStack>
+    <div class="line-oee-ring" role="img" aria-label="@($"{Title}: {Ratio(Result?.Oee)}")">
+        <MudProgressCircular Value="100" Color="@(Result?.Oee is null ? Color.Default : Color.Error)"
+                             StrokeWidth="10" Class="line-oee-ring__track" Style="width:100%;height:100%" aria-hidden="true" />
+        @if (Result?.Oee is { } oee)
+        {
+            <MudProgressCircular Value="@((double)(oee * 100))" Color="Color.Success" StrokeWidth="10"
+                                 Class="line-oee-ring__value" Style="width:100%;height:100%" aria-hidden="true" />
+        }
+        <div class="line-oee-ring__label">
+            <MudText Typo="Typo.h4"><strong>@Ratio(Result?.Oee)</strong></MudText>
+            <MudText Typo="Typo.caption">@(Result?.Oee is null ? EmptyLabel ?? "Chưa đủ dữ liệu" : "OEE")</MudText>
+        </div>
+    </div>
+    <MudText Typo="Typo.caption" Align="Align.Center" Class="d-block">A @Ratio(Result?.Availability) · P @Ratio(Result?.Performance) · Q @Ratio(Result?.Quality)</MudText>
+    @if (Result?.Oee is not null)
+    {
+        <MudStack Row="true" Justify="Justify.Center" Spacing="2" Class="mt-1">
+            <MudText Typo="Typo.caption" Color="Color.Success">OEE @Ratio(Result.Oee)</MudText>
+            <MudText Typo="Typo.caption" Color="Color.Error">Còn lại @Ratio(1 - Result.Oee)</MudText>
+        </MudStack>
+    }
+</MudPaper>
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string Period { get; set; } = string.Empty;
+    [Parameter] public DashboardRollupResult? Result { get; set; }
+    [Parameter] public string? EmptyLabel { get; set; }
+
+    private static string Ratio(decimal? value) => value?.ToString("0.##%", CultureInfo.CurrentCulture) ?? "—";
+}

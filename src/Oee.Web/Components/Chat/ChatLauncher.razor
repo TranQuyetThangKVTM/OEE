@@ -1,0 +1,16 @@
+@namespace Oee.Web.Components.Chat
+<AuthorizeView>
+    <Authorized Context="session">
+        <MudTooltip Text="Trợ lý OEE">
+            <MudIconButton Icon="@Icons.Material.Filled.SmartToy" Color="Color.Inherit"
+                           OnClick="Toggle" aria-label="Mở trợ lý hỏi đáp OEE" aria-expanded="@(_open ? "true" : "false")" />
+        </MudTooltip>
+        @if (_open)
+        {
+            <MudStack Class="oee-chat-host">
+                <ChatPanel Messages="_messages" UserName="@(session.User.Identity?.Name ?? "")"
+                           @bind-Expanded="_expanded" OnClose="Close" />
+            </MudStack>
+        }
+    </Authorized>
+</AuthorizeView>

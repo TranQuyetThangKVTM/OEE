@@ -1,0 +1,92 @@
+@namespace Oee.Web.Components.Pages.Plc
+@using Oee.Application.PlcIntegration
+@using Oee.Application.Contracts.PlcIntegration
+@implements IDisposable
+@inject Oee.Application.Common.IUseCaseExecutor Plc
+
+<MudDialog>
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.AccountTree" />
+            <MudText Typo="Typo.h6">Chọn tag từ namespace OPC UA</MudText>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        <MudAlert Dense="true"
+                  Severity="Severity.Info">
+            Bấm mũi tên để mở thư mục; bấm vào biến để chọn tag.
+        </MudAlert>
+        @if (_error is not null)
+        {
+            <MudAlert Class="mt-2" Dense="true"
+                      Severity="Severity.Error">@_error</MudAlert>
+        }
+        @if (_loading)
+        {
+            <MudProgressLinear Class="mt-3"
+                               Color="Color.Primary"
+                               Indeterminate="true" />
+        }
+        <div class="opc-browser-tree">
+            <MudTreeView T="OpcUaBrowseNode" Items="_roots" ServerData="LoadChildrenAsync" SelectedValue="_selected" aria-label="Cây tag OPC UA"
+                         Color="Color.Success"
+                         Dense="true" Hover="true" SelectionMode="SelectionMode.SingleSelection" Disabled="_loading"
+                         SelectedValueChanged="Select">
+                <ItemTemplate Context="data">
+                    @{ var item = (OpcUaBrowserTreeItem)data; }
+                    @if (item.RetryFor is { } retryParent)
+                    {
+                        <MudTreeViewItem T="OpcUaBrowseNode" Text="@item.Text"
+                                         ReadOnly="true" CanExpand="false">
+                            <BodyContent>
+                                <MudButton aria-label="@($"Thử lại nhánh {retryParent.Value!.DisplayName}")"
+                                           Size="Size.Small"
+                                           Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Refresh"
+                                           OnClick="@(() => RetryBranchAsync(retryParent))">Thử lại nhánh</MudButton>
+                            </BodyContent>
+                        </MudTreeViewItem>
+                    }
+                    else if (item.Value is { } node)
+                    {
+                        <MudTreeViewItem T="OpcUaBrowseNode" @key="node.NodeId" Value="node" Text="@node.DisplayName" Items="item.Children" aria-label="@($"{(node.IsVariable ? "Tag" : "Thư mục")} {node.DisplayName}")"
+                                         Icon="@(node.IsVariable ? Icons.Material.Filled.Label : Icons.Material.Filled.Folder)" IconColor="@(node.IsVariable ? Color.Success : Color.Warning)"
+                                         CanExpand="item.Expandable" ReadOnly="@(!node.IsVariable)" Expanded="item.Expanded"
+                                         ExpandedChanged="@(expanded => item.Expanded = expanded)" ItemsChanged="@(children => item.Children = children)">
+                            <BodyContent>
+                                <div class="opc-browser-node">
+                                    <span class="opc-browser-name">@node.DisplayName</span>
+                                    <span class="opc-browser-id" title="@node.DataType">@node.NodeId</span>
+                                </div>
+                            </BodyContent>
+                        </MudTreeViewItem>
+                    }
+                </ItemTemplate>
+            </MudTreeView>
+            @if (!_loading && _roots.Count == 0 && _error is null)
+            {
+                <EmptyState Title="Không có tag trong namespace này" />
+            }
+        </div>
+        <div class="opc-browser-selection" aria-label="Tag đang chọn">
+            <MudIcon Size="Size.Small" Icon="@Icons.Material.Filled.TouchApp" />
+            <span>Đang chọn: <strong>@(_selected?.DisplayName ?? "Chưa chọn")</strong></span>
+        </div>
+        @if (_selected is not null)
+        {
+            <span class="opc-browser-current">@_selected.NodeId · @_selected.DataType</span>
+        }
+        @if (_error is not null && _roots.Count == 0)
+        {
+            <MudButton Size="Size.Small"
+                       Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Refresh"
+                       Disabled="_loading"
+                       OnClick="ReloadAsync">Thử lại</MudButton>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Hủy</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                   Disabled="@(_loading || _selected is null)"
+                   OnClick="Confirm">Chọn tag này</MudButton>
+    </DialogActions>
+</MudDialog>

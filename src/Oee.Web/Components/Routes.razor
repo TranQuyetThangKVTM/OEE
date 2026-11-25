@@ -1,0 +1,18 @@
+@* Router của ứng dụng. AuthorizeRouteView kiểm tra [Authorize]/policy trên page ở server-side circuit;
+   NotAuthorized hiển thị trạng thái thân thiện, còn API/Application vẫn phải tự kiểm tra quyền mutation. *@
+<Router AppAssembly="typeof(Program).Assembly" NotFoundPage="typeof(Pages.NotFound)">
+    <Found Context="routeData">
+        <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)">
+            <NotAuthorized>
+                <LayoutView Layout="typeof(Layout.MainLayout)">
+                    <EmptyState Icon="@Icons.Material.Outlined.Lock"
+                                Title="Không có quyền truy cập"
+                                Message="Tài khoản của bạn không có quyền mở trang này." />
+                </LayoutView>
+            </NotAuthorized>
+        </AuthorizeRouteView>
+
+        @* Đưa focus tới tiêu đề sau chuyển route để hỗ trợ keyboard/screen reader. *@
+        <FocusOnNavigate RouteData="routeData" Selector="h1" />
+    </Found>
+</Router>

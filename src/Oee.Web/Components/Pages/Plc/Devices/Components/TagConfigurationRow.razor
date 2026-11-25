@@ -1,0 +1,35 @@
+@namespace Oee.Web.Components.Pages.Plc
+@inject Oee.Application.Common.IUseCaseExecutor Plc
+@* Một dòng cấu hình tag dùng lại trong dialog OPC UA: role, NodeId, kiểu dữ liệu và nút Browse.
+   Component chỉ chỉnh TagForm của dialog cha; việc validation/lưu SQL do dialog và Application xử lý. *@
+<div class="opc-tag-row">
+    <div class="opc-node-picker">
+        <MudTextField T="string" Value="@Tag.NodeId" ValueChanged="NodeChanged" Label="@FieldLabel" Placeholder="Nhập NodeId hoặc chọn từ cây OPC UA" HelperText="@Description(Tag.Role)"
+                      Margin="Margin.Dense"
+                      Variant="Variant.Outlined" Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.FolderOpen" AdornmentColor="Color.Warning" AdornmentAriaLabel="@($"Browse tag {Tag.Role}")"
+                      Required="@Tag.Required" Disabled="@(!CanBrowse)" MaxLength="512"
+                      OnAdornmentClick="@(() => BrowseRequested.InvokeAsync())" />
+    </div>
+    <MudSelect T="string" @bind-Value="Tag.DataType" Label="Kiểu dữ liệu"
+               Margin="Margin.Dense" Dense="true" Class="opc-tag-type"
+               Variant="Variant.Outlined">
+        @foreach (string dataType in DataTypes)
+        {
+            <MudSelectItem Value="@dataType">@DataTypeLabel(dataType)</MudSelectItem>
+        }
+    </MudSelect>
+    <MudIconButton aria-label="@($"Bỏ tag {Tag.Role}")"
+                   Size="Size.Small" Class="opc-tag-clear"
+                   Icon="@Icons.Material.Filled.Close"
+                   Disabled="@string.IsNullOrWhiteSpace(Tag.NodeId)"
+                   OnClick="ClearTag" />
+    <MudButton Size="Size.Small" StartIcon="@Icons.Material.Filled.NetworkPing" Variant="Variant.Text"
+               Disabled="@(_testing || !CanBrowse || string.IsNullOrWhiteSpace(Tag.NodeId))" OnClick="TestAsync"
+               aria-label="@($"Đọc thử tag {Tag.Role}")">@(_testing ? "Đang đọc…" : "Đọc thử")</MudButton>
+    @if (_test is not null && _testedNode == Tag.NodeId)
+    {
+        <MudAlert Dense="true" Severity="@(_test.IsGood ? Severity.Success : Severity.Warning)" Class="opc-tag-result">
+            @_test.Value · @_test.ActualType · @_test.StatusCode
+        </MudAlert>
+    }
+</div>

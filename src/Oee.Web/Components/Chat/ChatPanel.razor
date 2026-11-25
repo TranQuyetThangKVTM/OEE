@@ -1,0 +1,131 @@
+@namespace Oee.Web.Components.Chat
+@using Oee.Application.Chat
+@implements IDisposable
+@inject Oee.Web.Chat.ChatRequestRunner Runner
+@inject ILogger<ChatPanel> Logger
+@inject IScrollManager ScrollManager
+@inject IDialogService Dialogs
+
+<MudPaper Width="@PanelWidth" Height="@PanelHeight" Elevation="12"
+          Class="oee-chat-panel d-flex flex-column overflow-hidden rounded-xl" role="region" aria-label="Trợ lý OEE"
+          @onkeydown="HandlePanelKeyDownAsync">
+    <MudPaper Elevation="0" Square="true" Class="mud-theme-primary px-3 py-2 flex-shrink-0">
+        <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+            <MudIcon Icon="@Icons.Material.Filled.SmartToy" Size="Size.Small" />
+            <MudStack Spacing="0" Class="flex-grow-1">
+                <MudText Typo="Typo.subtitle2">Trợ lý OEE</MudText>
+                <MudText Typo="Typo.caption">Hỏi đáp về sản xuất@(string.IsNullOrWhiteSpace(UserName) ? "" : $" · {UserName}")</MudText>
+            </MudStack>
+            <MudStack Row="true" Spacing="0">
+                @if (Messages.Count > 0)
+                {
+                    <MudTooltip Text="Xóa hội thoại">
+                        <MudIconButton Icon="@Icons.Material.Outlined.DeleteSweep" Color="Color.Inherit" Size="Size.Small"
+                                       OnClick="Clear" Disabled="_busy" aria-label="Xóa hội thoại" />
+                    </MudTooltip>
+                }
+                <MudTooltip Text="@(Expanded ? "Thu nhỏ" : "Mở rộng")">
+                    <MudIconButton Icon="@(Expanded ? Icons.Material.Filled.FullscreenExit : Icons.Material.Filled.Fullscreen)"
+                                   Color="Color.Inherit" Size="Size.Small" OnClick="ToggleExpandedAsync"
+                                   aria-label="@(Expanded ? "Thu nhỏ trò chuyện" : "Mở rộng trò chuyện")" />
+                </MudTooltip>
+                <MudIconButton Icon="@Icons.Material.Filled.Close" Color="Color.Inherit" Size="Size.Small"
+                               OnClick="OnClose" aria-label="Đóng trợ lý OEE" />
+            </MudStack>
+        </MudStack>
+    </MudPaper>
+
+    <AuthorizeView Policy="@Capabilities.ProductionPlanManage" Context="planningSession">
+        <Authorized>
+            <MudButton StartIcon="@Icons.Material.Outlined.EventRepeat" Color="Color.Primary" Size="Size.Small"
+                       Class="flex-shrink-0" OnClick="OpenScheduleAsync" Disabled="_busy">
+                Lịch kế hoạch / PDF ca
+            </MudButton>
+        </Authorized>
+    </AuthorizeView>
+
+    <MudPaper Elevation="0" Square="true" MinHeight="0" Class="flex-grow-1 overflow-y-auto mud-background-gray pa-3" id="@_scrollId">
+        <MudStack Spacing="2" role="log" aria-live="polite" aria-label="Hội thoại OEE" aria-busy="@_busy.ToString().ToLowerInvariant()">
+            <MudStack Row="true" Spacing="2" AlignItems="AlignItems.End">
+                <MudAvatar Color="Color.Primary" Size="Size.Small"><MudIcon Icon="@Icons.Material.Filled.SmartToy" Size="Size.Small" /></MudAvatar>
+                <MudPaper MaxWidth="@AnswerWidth" Elevation="1" Class="pa-3 rounded-xl">
+                    <ChatAnswerText Text="@WelcomeText" />
+                    <MudStack Spacing="1" AlignItems="AlignItems.Start" Class="mt-3">
+                        @foreach (var suggestion in ChatSamples.Featured)
+                        {
+                            <MudButton Variant="Variant.Outlined" Color="Color.Info" Size="Size.Small" Class="rounded-pill"
+                                       OnClick="() => SendAsync(suggestion)" Disabled="_busy">
+                                <MudText Typo="Typo.caption">@suggestion</MudText>
+                            </MudButton>
+                        }
+                    </MudStack>
+                </MudPaper>
+            </MudStack>
+
+            @foreach (var message in Messages)
+            {
+                if (message.IsUser)
+                {
+                    <MudStack Row="true" Justify="Justify.FlexEnd">
+                        <MudPaper MaxWidth="88%" Elevation="1" Class="mud-theme-primary pa-3 rounded-xl">
+                            <MudText Typo="Typo.body2">@message.Text</MudText>
+                        </MudPaper>
+                    </MudStack>
+                }
+                else
+                {
+                    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.End">
+                        <MudAvatar Color="Color.Primary" Size="Size.Small"><MudIcon Icon="@Icons.Material.Filled.SmartToy" Size="Size.Small" /></MudAvatar>
+                        <MudPaper MaxWidth="@AnswerWidth" Elevation="1" Class="pa-3 rounded-xl">
+                            <ChatAnswerText Text="@message.Text" />
+                            @if (message.Answer is { } answer)
+                            {
+                                @if (answer.Citations.Any(x => IsLocalLink(x.Href)))
+                                {
+                                    <MudDivider Class="my-2" />
+                                    <MudStack Spacing="1" AlignItems="AlignItems.Start">
+                                        @foreach (var citation in answer.Citations.Where(x => IsLocalLink(x.Href)))
+                                        {
+                                            <MudButton Href="@citation.Href" Variant="Variant.Text" Color="Color.Info" Size="Size.Small"
+                                                       StartIcon="@Icons.Material.Filled.OpenInNew"><MudText Typo="Typo.caption">@citation.Label</MudText></MudButton>
+                                        }
+                                    </MudStack>
+                                }
+                                <MudStack Spacing="1" AlignItems="AlignItems.Start" Class="mt-2">
+                                    @foreach (var suggestion in answer.FollowUpSuggestions.Take(3))
+                                    {
+                                        <MudButton Variant="Variant.Outlined" Color="Color.Info" Size="Size.Small" Class="rounded-pill"
+                                                   OnClick="() => SendAsync(suggestion)" Disabled="_busy"><MudText Typo="Typo.caption">@suggestion</MudText></MudButton>
+                                    }
+                                </MudStack>
+                            }
+                        </MudPaper>
+                    </MudStack>
+                }
+            }
+
+            @if (_busy)
+            {
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                    <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Small" />
+                    <MudText Typo="Typo.caption">Đang tra cứu dữ liệu…</MudText>
+                </MudStack>
+            }
+        </MudStack>
+    </MudPaper>
+
+    <MudDivider Class="flex-grow-0" />
+    <MudPaper Elevation="0" Square="true" Height="64px" Class="pa-2 flex-shrink-0 d-flex align-center">
+        <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Class="mud-width-full">
+            <MudPaper Outlined="true" Elevation="0" MinWidth="0" Class="rounded-pill px-3 flex-grow-1">
+                <MudTextField T="string" @ref="_questionField" @bind-Value="_input" Placeholder="Hỏi về OEE, máy, sản lượng…"
+                              Variant="Variant.Text" Margin="Margin.Dense" Underline="false" Immediate="true" MaxLength="1000"
+                              Disabled="_busy" OnKeyDown="HandleInputKeyDownAsync" aria-label="Câu hỏi của bạn" />
+            </MudPaper>
+            <MudIconButton Icon="@Icons.Material.Filled.Send" Variant="Variant.Filled" Color="Color.Primary"
+                           Class="rounded-circle"
+                           OnClick="() => SendAsync(_input)" Disabled="_busy || string.IsNullOrWhiteSpace(_input)"
+                           aria-label="Gửi câu hỏi" />
+        </MudStack>
+    </MudPaper>
+</MudPaper>

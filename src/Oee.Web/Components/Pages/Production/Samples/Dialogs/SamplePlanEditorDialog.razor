@@ -1,0 +1,31 @@
+@namespace Oee.Web.Components.Pages.Production
+@inject Oee.Application.Modules.IProductionModuleQueryService Query
+@inject Oee.Application.Common.IUseCaseExecutor Commands
+@inject Microsoft.AspNetCore.Authorization.IAuthorizationService Authorization
+@inject Microsoft.AspNetCore.Components.Authorization.AuthenticationStateProvider Authentication
+
+<MudDialog>
+    <TitleContent><MudText Typo="Typo.h6">@Title</MudText></TitleContent>
+    <DialogContent>
+        @if (!string.IsNullOrWhiteSpace(error)) { <MudAlert Severity="Severity.Error" Variant="Variant.Outlined" Dense="true" Class="mb-3">@error</MudAlert> }
+        @if (loading) { <MudProgressLinear Indeterminate="true" /> }
+        else if (!_loadFailed)
+        {
+            <MudForm @ref="_mudForm" @bind-IsValid="_valid">
+                <MudStack Spacing="3" Class="py-2">
+                    <MudTextField @bind-Value="form.Code" Label="Mã mẫu" Required="true" MaxLength="32" For="@(() => form.Code)" />
+                    <MudTextField @bind-Value="form.Name" Label="Tên mẫu" Required="true" MaxLength="200" For="@(() => form.Name)" />
+                    <MudTextField @bind-Value="form.Description" Label="Mô tả" Lines="4" ReadOnly="IsCopy" For="@(() => form.Description)" />
+                    @if (IsCopy) { <MudText Typo="Typo.caption">Bản sao bao gồm toàn bộ các dòng của mẫu nguồn.</MudText> }
+                </MudStack>
+            </MudForm>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Disabled="saving">Hủy</MudButton>
+        @if (_loadFailed) { <MudButton OnClick="LoadAsync" Disabled="loading">Tải lại</MudButton> }
+        <AuthorizeAction Policy="@Capabilities.ProductionPlanManage">
+            <MudButton OnClick="SaveAsync" Disabled="@(saving || loading || _loadFailed)" Variant="Variant.Filled" Color="Color.Primary">Lưu mẫu</MudButton>
+        </AuthorizeAction>
+    </DialogActions>
+</MudDialog>

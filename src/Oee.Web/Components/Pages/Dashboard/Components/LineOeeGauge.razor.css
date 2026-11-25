@@ -1,0 +1,29 @@
+.line-oee-gauge {
+    padding: 12px;
+    height: 100%;
+}
+.line-oee-ring {
+    position: relative;
+    width: min(100%, 192px);
+    aspect-ratio: 1;
+    margin: 10px auto;
+}
+.line-oee-ring ::deep .line-oee-ring__track,
+.line-oee-ring ::deep .line-oee-ring__value {
+    position: absolute;
+    inset: 0;
+}
+.line-oee-ring__label {
+    position: absolute;
+    inset: 22%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--mud-palette-text-primary);
+}
+@media (prefers-reduced-motion: reduce) {
+    .line-oee-ring ::deep circle {
+        transition: none;
+    }
+}

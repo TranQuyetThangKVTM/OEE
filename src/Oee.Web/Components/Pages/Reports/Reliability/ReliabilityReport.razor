@@ -1,0 +1,6 @@
+@namespace Oee.Web.Components.Pages.Reports
+@page "/reports/reliability"
+@using Oee.Application.Contracts.Reporting
+@attribute [Authorize]
+@* MTBF/MTTR trong workspace đến từ Application và chỉ dùng Failure/Breakdown theo domain rule. *@
+<ReportWorkspace Kind="ReportKind.Reliability" Title="Báo cáo độ tin cậy thiết bị" Subtitle="MTBF / MTTR / Availability theo thiết bị và lịch sử đã ghi nhận. Chỉ tính sự cố Failure / Breakdown." />

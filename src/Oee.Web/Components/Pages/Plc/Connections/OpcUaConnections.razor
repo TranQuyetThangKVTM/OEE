@@ -1,0 +1,94 @@
+@namespace Oee.Web.Components.Pages.Plc
+@page "/plc/connections"
+@page "/integration/opc-connections"
+@using Oee.Application.PlcIntegration
+@using Oee.Application.Contracts.Modules
+@using Oee.Application.Contracts.PlcIntegration
+@attribute [Authorize]
+@inject Oee.Application.Common.IUseCaseExecutor Plc
+@inject IDialogService DialogService
+
+@* Trang xem endpoint OPC UA yêu cầu đăng nhập; thao tác ghi vẫn yêu cầu PlcManage.
+   Credential được nhập dưới dạng secret reference write-only: DTO danh sách chỉ cho biết đã cấu hình hay chưa,
+   không trả giá trị bí mật về browser. Component gọi service, không lưu trực tiếp bằng DbContext. *@
+<PageTitle>Kết nối OPC UA</PageTitle>
+
+<PageHeader OnRefresh="ReloadAsync" Title="Kết nối OPC UA"
+            Subtitle="Endpoint, security và tham chiếu credential; không lưu hoặc hiển thị mật khẩu rõ">
+    <Actions>
+        <AuthorizeAction Policy="@Capabilities.PlcManage">
+<MudButton Color="Color.Secondary" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Add"
+                   OnClick="BeginAdd">
+            Thêm kết nối
+        </MudButton>
+</AuthorizeAction>
+    </Actions>
+    <Metrics><MetricCard Label="Kết nối OPC UA" Value="@_totalCount.ToString("N0")" Icon="@Icons.Material.Filled.Hub" Color="Color.Info" /></Metrics>
+</PageHeader>
+
+@if (!string.IsNullOrWhiteSpace(_error))
+{
+    <MudAlert Dense="true" Class="my-3"
+              Severity="Severity.Error" Variant="Variant.Outlined">@_error</MudAlert>
+}
+
+<PageFilter>
+    <MudTextField T="string" @bind-Value="_search" Label="Mã, tên hoặc endpoint"
+                  Immediate="true" DebounceInterval="500"
+                  @bind-Value:after="ApplyFiltersAsync" />
+    <MudSelect T="string" @bind-Value="_state" Label="Trạng thái"
+               Clearable="true"
+               @bind-Value:after="ApplyFiltersAsync">
+        <MudSelectItem Value="@("true")">Active</MudSelectItem>
+        <MudSelectItem Value="@("false")">Paused</MudSelectItem>
+    </MudSelect>
+</PageFilter>
+
+
+<PageTable TItem="OpcUaConnectionItem"
+             @ref="_table"
+             ItemsProvider="LoadAsync"
+             AriaLabel="Danh sách kết nối OPC UA"
+             EmptyTitle="Chưa có kết nối OPC UA phù hợp">
+    <HeaderContent>
+        <MudTh><MudTableSortLabel T="OpcUaConnectionItem" SortLabel="code">Mã</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="OpcUaConnectionItem" SortLabel="name">Tên</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="OpcUaConnectionItem" SortLabel="endpoint">Endpoint</MudTableSortLabel></MudTh>
+        <MudTh>Security / Auth</MudTh>
+        <MudTh>Secret</MudTh>
+        <MudTh>Phiên cuối</MudTh>
+        <MudTh>Trạng thái</MudTh>
+        <MudTh>Thao tác</MudTh>
+    </HeaderContent>
+    <RowTemplate Context="item">
+        <MudTd DataLabel="Mã"><strong>@item.Code</strong></MudTd>
+        <MudTd DataLabel="Tên">@item.Name</MudTd>
+        <MudTd DataLabel="Endpoint"
+               Class="text-truncate">@item.EndpointUrl</MudTd>
+        <MudTd DataLabel="Security / Auth">@item.SecurityMode / @item.AuthenticationType</MudTd>
+        <MudTd DataLabel="Secret">@(item.HasCredentialSecret ? "Đã cấu hình" : "Không")</MudTd>
+        <MudTd DataLabel="Phiên cuối">
+            @(item.LastSessionState ?? "—")
+            <small class="table-subline">@FormatTimestamp(item.LastSessionAt)</small>
+        </MudTd>
+        <MudTd DataLabel="Trạng thái">
+            <StatusChip Text="@(item.IsActive ? "Active" : "Paused")"
+                        Kind="@(item.IsActive ? SemanticKind.Success : SemanticKind.Warning)" />
+        </MudTd>
+        <MudTd DataLabel="Thao tác">
+            <AuthorizeAction Policy="@Capabilities.PlcManage">
+                <RowActionMenu Label="@($"Thao tác kết nối {item.Code}")">
+                    <RowAction Label="Test connection"
+                               Icon="@Icons.Material.Filled.NetworkPing"
+                               OnClick="@(() => TestAsync(item.Id))" />
+                    <RowAction Label="Sửa kết nối"
+                               Icon="@Icons.Material.Filled.Edit"
+                               OnClick="@(() => BeginEdit(item))" />
+                    <RowAction Label="Xóa kết nối"
+                               Icon="@Icons.Material.Filled.Delete" Color="Color.Error"
+                               OnClick="@(() => DeleteAsync(item))" />
+                </RowActionMenu>
+            </AuthorizeAction>
+        </MudTd>
+    </RowTemplate>
+</PageTable>

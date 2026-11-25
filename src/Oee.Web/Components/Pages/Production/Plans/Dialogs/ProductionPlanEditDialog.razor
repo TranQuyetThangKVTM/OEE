@@ -1,0 +1,94 @@
+@namespace Oee.Web.Components.Pages.Production
+@using Oee.Application.Contracts.Modules
+@using Oee.Application.Contracts.Operations
+@inject Oee.Application.Modules.IProductionModuleQueryService Query
+@inject Oee.Application.Common.IUseCaseExecutor Commands
+@inject ISnackbar Snackbar
+
+<MudDialog Class="plan-edit-dialog">
+    <TitleContent><MudText Typo="Typo.h6">Cập nhật kế hoạch</MudText></TitleContent>
+    <DialogContent>
+        @if (_loading)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+        }
+        @if (!string.IsNullOrWhiteSpace(_error))
+        {
+            <MudAlert Dense="true" Class="mb-3"
+                      Severity="Severity.Error" Variant="Variant.Outlined">@_error</MudAlert>
+        }
+        @if (_existing is not null && _lookups is not null)
+        {
+            <MudForm @ref="_form">
+                <MudStack Spacing="2">
+                    <MudTextField T="string" Value="@PlanCode" Label="Mã kế hoạch (tự sinh)"
+                                  Margin="Margin.Dense"
+                                  Variant="Variant.Filled"
+                                  ReadOnly="true" />
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Mã sẽ cập nhật khi đổi ngày bắt đầu hoặc ca.</MudText>
+                    <MudTextField T="string" Value="@LookupText(_lookups.WorkUnits, _existing.WorkUnitId)" Label="Thiết bị / dây chuyền"
+                                  Margin="Margin.Dense"
+                                  Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Search"
+                                  Disabled="true" />
+                    <MudTextField T="string" Value="@LookupText(_lookups.Products, _existing.ProductId)" Label="Sản phẩm (SKU)"
+                                  Margin="Margin.Dense"
+                                  Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Search"
+                                  Disabled="true" />
+                    <MudSelect T="Guid?" Value="@_shiftId" Label="Ca làm việc (tùy chọn)"
+                               Margin="Margin.Dense"
+                               Clearable="true" Disabled="@_saving"
+                               ValueChanged="ShiftChanged">
+                        @foreach (var shift in AvailableShifts)
+                        {
+                            <MudSelectItem T="Guid?" Value="@((Guid?)shift.Id)">@ShiftText(shift)</MudSelectItem>
+                        }
+                    </MudSelect>
+                    <MudGrid Spacing="2">
+                        <MudItem xs="12" sm="6">
+                            <MudDatePicker Date="@_startDate" Label="Ngày bắt đầu"
+                                           Margin="Margin.Dense"
+                                           DateFormat="dd/MM/yyyy"
+                                           Required="true" RequiredError="Chọn ngày bắt đầu." Disabled="@_saving"
+                                           DateChanged="StartDateChanged" />
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudTimePicker @bind-Time="_startTime" Label="Giờ bắt đầu"
+                                           Margin="Margin.Dense"
+                                           TimeFormat="HH:mm"
+                                           Required="true" RequiredError="Chọn giờ bắt đầu." Disabled="@_saving" />
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudDatePicker @bind-Date="_endDate" Label="Ngày kết thúc"
+                                           Margin="Margin.Dense"
+                                           DateFormat="dd/MM/yyyy"
+                                           Required="true" RequiredError="Chọn ngày kết thúc." Disabled="@_saving" />
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudTimePicker @bind-Time="_endTime" Label="Giờ kết thúc"
+                                           Margin="Margin.Dense"
+                                           TimeFormat="HH:mm"
+                                           Required="true" RequiredError="Chọn giờ kết thúc." Disabled="@_saving" />
+                        </MudItem>
+                    </MudGrid>
+                    <MudNumericField T="decimal" @bind-Value="_quantity" Label="Sản lượng kế hoạch"
+                                     Margin="Margin.Dense"
+                                     Format="N4"
+                                     Required="true" Min="0.0001m" Disabled="@_saving" />
+                    <MudTextField T="string" @bind-Value="_notes" Label="Ghi chú"
+                                  Margin="Margin.Dense" Lines="2"
+                                  MaxLength="500" Disabled="@_saving" />
+                    @if (_existing.HasOutput)
+                    {
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Sản lượng đã ghi nhận được giữ nguyên; khi lưu sẽ tạo phiên bản điều chỉnh có hiệu lực ngay.</MudText>
+                    }
+                </MudStack>
+            </MudForm>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton Disabled="@_saving" OnClick="Cancel">Hủy</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                   Disabled="@(_loading || _saving || _existing is null)"
+                   OnClick="SaveAsync">@(_saving ? "Đang lưu…" : "Lưu")</MudButton>
+    </DialogActions>
+</MudDialog>

@@ -1,0 +1,45 @@
+
+@* AppBar toàn cục: toggle drawer, nhận diện hệ thống, clock/shift, cảnh báo, audit và user popover.
+   EventCallback chỉ báo MainLayout đổi trạng thái drawer; component không truy cập SQL. *@
+<MudAppBar Elevation="1" Class="oee-appbar">
+    <MudIconButton aria-label="Mở hoặc đóng menu"
+                   Edge="Edge.Start"
+                   Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit"
+                   OnClick="DrawerToggleRequested" />
+
+    <div class="app-brand-logo">
+        <img src="@Assets["branding/tan-tien-logo.png"]" class="app-logo" alt="Tân Tiến" width="44" height="44" />
+    </div>
+
+    <div class="app-identity">
+        <MudText Typo="Typo.subtitle1">Hệ thống Quản lý Hiệu suất Thiết bị OEE</MudText>
+        <MudText Typo="Typo.caption">Thu thập dữ liệu sản xuất · Phân tích OEE · Báo cáo &amp; cảnh báo</MudText>
+    </div>
+
+    <MudSpacer />
+
+    <div class="appbar-shift">
+        <LiveClockShiftIndicator />
+    </div>
+
+    <OpcConnectionIndicator />
+
+    <MudTooltip Text="Cảnh báo đang mở">
+        <MudBadge Content="0"
+                  Overlap="true"
+                  Color="Color.Error">
+            <MudIconButton aria-label="Cảnh báo"
+                           Icon="@Icons.Material.Filled.Notifications" Color="Color.Inherit" />
+        </MudBadge>
+    </MudTooltip>
+
+    <RoleGuard Policy="@Capabilities.AuditRead">
+        <MudTooltip Text="Nhật ký audit">
+            <MudIconButton Href="/audit" aria-label="Nhật ký audit"
+                           Icon="@Icons.Material.Filled.FactCheck" Color="Color.Inherit" />
+        </MudTooltip>
+    </RoleGuard>
+
+    <Oee.Web.Components.Chat.ChatLauncher />
+    <UserAccountMenu />
+</MudAppBar>

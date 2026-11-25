@@ -1,0 +1,30 @@
+<Project>
+  <Import Project="../Directory.Build.props" />
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(MSBuildProjectName)' != 'Oee.ArchitectureTests'">
+    <Compile Include="$(MSBuildThisFileDirectory)Shared/DomainTestData.cs" Link="Fixtures/DomainTestData.cs" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(MSBuildProjectName)' == 'Oee.Application.UnitTests' or '$(MSBuildProjectName)' == 'Oee.Infrastructure.IntegrationTests' or '$(MSBuildProjectName)' == 'Oee.Web.ComponentTests'">
+    <Compile Include="$(MSBuildThisFileDirectory)Shared/UseCases/*.cs"
+             Exclude="$(MSBuildThisFileDirectory)Shared/UseCases/ScenarioServiceCollectionExtensions.cs"
+             Link="Fixtures/UseCases/%(Filename)%(Extension)" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(MSBuildProjectName)' == 'Oee.Web.ComponentTests' or '$(MSBuildProjectName)' == 'Oee.Infrastructure.IntegrationTests'">
+    <Compile Include="$(MSBuildThisFileDirectory)Shared/UseCases/ScenarioServiceCollectionExtensions.cs"
+             Link="Fixtures/UseCases/ScenarioServiceCollectionExtensions.cs" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,128 @@
+@namespace Oee.Web.Components.Pages.Production
+@page "/production-plans"
+@page "/production/plans"
+@using Oee.Application.Contracts.Modules
+@attribute [Authorize]
+@inject Oee.Application.Modules.IProductionModuleQueryService Query
+@inject Oee.Application.Common.IUseCaseExecutor Commands
+@inject IDialogService DialogService
+
+@* Routes: /production-plans và /production/plans yêu cầu đăng nhập; thao tác ghi yêu cầu ProductionPlanManage.
+   Danh sách dùng server paging/filter/sort qua IProductionModuleQueryService. Tạo bulk mở MudDialog;
+   sửa mở MudDialog; xóa chỉ xác nhận và kiểm tra RowVersion, giữ lịch sử sản lượng. *@
+<PageTitle>Kế hoạch sản xuất</PageTitle>
+<PageHeader OnRefresh="Reload" RefreshDisabled="@initializing" Title="Kế hoạch sản xuất" Subtitle="Theo dõi kế hoạch theo thiết bị, sản phẩm, ca và kết quả thực hiện">
+    <Actions>
+        <AuthorizeAction Policy="@Capabilities.ProductionPlanManage">
+<MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.ContentCopy"
+                   OnClick="OpenFromSampleDialogAsync">Từ kế hoạch mẫu</MudButton>
+</AuthorizeAction>
+        <AuthorizeAction Policy="@Capabilities.ProductionPlanManage">
+<MudButton Color="Color.Primary" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Add"
+                   OnClick="OpenCreateDialogAsync">Tạo kế hoạch</MudButton>
+</AuthorizeAction>
+    </Actions>
+    <Metrics><MetricCard Label="Tổng kế hoạch" Value="@totalCount.ToString("N0")" Icon="@Icons.Material.Filled.EventNote" Color="Color.Info" /></Metrics>
+</PageHeader>
+
+@if (!string.IsNullOrWhiteSpace(lookupError))
+{
+    <MudAlert Dense="true" Class="my-3" Severity="Severity.Error" Variant="Variant.Outlined">@lookupError</MudAlert>
+}
+
+@if (!string.IsNullOrWhiteSpace(error))
+{
+    <MudAlert Dense="true" Class="my-3"
+              Severity="Severity.Error" Variant="Variant.Outlined">@error</MudAlert>
+}
+
+@if (initializing)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" aria-label="Đang tải bộ lọc kế hoạch" />
+}
+else
+{
+<PageFilter>
+    <MudTextField T="string" @bind-Value="search" Label="Mã kế hoạch, SKU hoặc thiết bị"
+                  Margin="Margin.Dense"
+                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Variant="Variant.Outlined"
+                  Immediate="true" DebounceInterval="500"
+                  @bind-Value:after="ApplyFiltersAsync" />
+    <MudSelect T="string" @bind-Value="workUnitId" Label="Thiết bị" Disabled="@(lookups is null)"
+               Margin="Margin.Dense"
+               Variant="Variant.Outlined"
+               Clearable="true"
+               @bind-Value:after="ApplyFiltersAsync">
+        @foreach (var item in lookups?.WorkUnits ?? [])
+        {
+            <MudSelectItem T="string" Value="@item.Id.ToString()">@item.Code · @item.Name</MudSelectItem>
+        }
+    </MudSelect>
+    <MudSelect T="string" @bind-Value="productId" Label="Sản phẩm" Disabled="@(lookups is null)"
+               Margin="Margin.Dense"
+               Variant="Variant.Outlined"
+               Clearable="true"
+               @bind-Value:after="ApplyFiltersAsync">
+        @foreach (var item in lookups?.Products ?? [])
+        {
+            <MudSelectItem T="string" Value="@item.Id.ToString()">@item.Code · @item.Name</MudSelectItem>
+        }
+    </MudSelect>
+    <PageDateRangeFilter @bind-FromDate="fromDate" @bind-ToDate="untilDate"
+                         RangeChanged="ApplyFiltersAsync" />
+</PageFilter>
+
+<PageTable @key="tableGeneration" TItem="ProductionPlanListItem" @ref="table" ItemsProvider="Load" AriaLabel="Danh sách kế hoạch sản xuất" EmptyTitle="Không có kế hoạch phù hợp"
+           GroupBy="grouping.Definition" GroupColumnSpan="8">
+    <ToolbarContent>
+        <TableGroupingSelector Value="grouping.Mode" ValueChanged="grouping.SetMode"
+                               ExpandAll="() => table?.ExpandAllGroups()" CollapseAll="() => table?.CollapseAllGroups()" />
+    </ToolbarContent>
+    <HeaderContent>
+        <MudTh><MudTableSortLabel T="ProductionPlanListItem" SortLabel="code">Mã</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="ProductionPlanListItem" SortLabel="workunit">Thiết bị</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="ProductionPlanListItem" SortLabel="product">Sản phẩm</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="ProductionPlanListItem" SortLabel="start">Ca</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="ProductionPlanListItem" SortLabel="quantity">Kế hoạch</MudTableSortLabel></MudTh>
+        <MudTh>Đạt KH</MudTh>
+        <MudTh><MudTableSortLabel T="ProductionPlanListItem" SortLabel="status">Trạng thái</MudTableSortLabel></MudTh>
+        <MudTh>Thao tác</MudTh>
+    </HeaderContent>
+    <RowTemplate Context="item">
+        <MudTd DataLabel="Mã"><strong>@item.Code</strong><small class="table-subline">@($"v{item.Version}")</small></MudTd>
+        <MudTd DataLabel="Thiết bị">
+            <strong>@item.WorkUnit</strong>
+            @if (!string.IsNullOrWhiteSpace(item.WorkUnitName))
+            {
+                <small class="table-subline">@item.WorkUnitName</small>
+            }
+        </MudTd>
+        <MudTd DataLabel="Sản phẩm">
+            <strong>@item.Product</strong>
+            @if (!string.IsNullOrWhiteSpace(item.ProductName))
+            {
+                <small class="table-subline">@item.ProductName</small>
+            }
+        </MudTd>
+        <MudTd DataLabel="Ca">@(item.Shift ?? "Không gán ca")<small class="table-subline">@ShiftPeriod(item)</small></MudTd>
+        <MudTd DataLabel="Kế hoạch">@item.PlannedQuantity.ToString("N0")</MudTd>
+        <MudTd DataLabel="Đạt KH">
+            <MudText Typo="Typo.body2" Color="@AttainmentColor(item.ExecutionStatus)"><strong>@item.ActualQuantity.ToString("N0")</strong></MudText>
+            <MudText Typo="Typo.caption" Color="Color.Secondary">@FormatRatio(item.Attainment)</MudText>
+        </MudTd>
+        <MudTd DataLabel="Trạng thái"><StatusChip Text="@ExecutionPresentation(item.ExecutionStatus).Text" Kind="@ExecutionPresentation(item.ExecutionStatus).Kind" /></MudTd>
+        <MudTd DataLabel="Thao tác">
+            <AuthorizeAction Policy="@Capabilities.ProductionPlanManage">
+                <RowActionMenu Label="@($"Thao tác {item.Code}")">
+                    <RowAction Label="Sửa kế hoạch"
+                               Icon="@Icons.Material.Filled.Edit" Color="Color.Primary"
+                               OnClick="() => EditAsync(item)" />
+                    <RowAction Label="Xóa kế hoạch"
+                               Icon="@Icons.Material.Filled.Delete" Color="Color.Error"
+                               OnClick="() => DeleteAsync(item)" />
+                </RowActionMenu>
+            </AuthorizeAction>
+        </MudTd>
+    </RowTemplate>
+</PageTable>
+}

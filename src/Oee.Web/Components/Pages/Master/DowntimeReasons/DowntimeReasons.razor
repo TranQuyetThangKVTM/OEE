@@ -1,0 +1,101 @@
+@namespace Oee.Web.Components.Pages.Master
+@page "/master/downtime-reasons"
+@using Oee.Application.Contracts.Modules
+@using Oee.Application.Contracts.Operations
+@attribute [Authorize]
+@inject Oee.Application.Modules.IMasterDataQueryService Query
+@inject Oee.Application.Common.IUseCaseExecutor Commands
+@inject IDialogService DialogService
+
+@* Trang danh mục nguyên nhân dừng máy. Category và Kind đến từ lookup/domain hợp lệ;
+   DR-UNKNOWN là reason hệ thống dùng cho dữ liệu chưa phân loại và được backend bảo vệ.
+   Thay đổi master không tự tái phân loại DowntimeEvent lịch sử. *@
+<PageTitle>Lý do dừng máy</PageTitle>
+
+<PageHeader OnRefresh="ReloadAsync" Title="Lý do dừng máy"
+            Subtitle="Phân loại planned/unplanned và bảo vệ reason hệ thống DR-UNKNOWN">
+    <Actions>
+        <AuthorizeAction Policy="@Capabilities.MasterDataWrite">
+            <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Add"
+                       OnClick="OpenCreateDialogAsync">
+                Thêm lý do
+            </MudButton>
+        </AuthorizeAction>
+    </Actions>
+    <Metrics><MetricCard Label="Lý do dừng máy" Value="@_totalCount.ToString("N0")" Icon="@Icons.Material.Filled.BuildCircle" Color="Color.Info" /></Metrics>
+</PageHeader>
+
+@if (!string.IsNullOrWhiteSpace(_error))
+{
+    <MudAlert Dense="true" Class="my-3"
+              Severity="Severity.Error" Variant="Variant.Outlined">@_error</MudAlert>
+}
+
+<PageFilter>
+    <MudTextField T="string" @bind-Value="_search" Label="Mã, tên hoặc mô tả"
+                  Immediate="true" DebounceInterval="500"
+                  @bind-Value:after="ApplyFiltersAsync" />
+    <MudSelect T="string" @bind-Value="_category" Label="Phân loại"
+               Clearable="true"
+               @bind-Value:after="ApplyFiltersAsync">
+        @foreach (MasterLookupOption option in _lookups?.DowntimeCategories ?? [])
+        {
+            <MudSelectItem Value="@option.Code">@option.Name</MudSelectItem>
+        }
+    </MudSelect>
+    <MudSelect T="string" @bind-Value="_status" Label="Trạng thái"
+               Clearable="true"
+               @bind-Value:after="ApplyFiltersAsync">
+        @foreach (MasterLookupOption option in _lookups?.Statuses ?? [])
+        {
+            <MudSelectItem Value="@option.Code">@option.Name</MudSelectItem>
+        }
+    </MudSelect>
+</PageFilter>
+
+
+<PageTable TItem="DowntimeReasonListItem"
+             @ref="_table"
+             ItemsProvider="LoadAsync"
+             AriaLabel="Danh sách lý do dừng máy"
+             EmptyTitle="Không có lý do phù hợp">
+    <HeaderContent>
+        <MudTh><MudTableSortLabel T="DowntimeReasonListItem" SortLabel="code">Mã</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="DowntimeReasonListItem" SortLabel="name">Tên</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="DowntimeReasonListItem" SortLabel="category">Phân loại</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="DowntimeReasonListItem" SortLabel="kind">Nhóm</MudTableSortLabel></MudTh>
+        <MudTh>Mô tả</MudTh>
+        <MudTh>Trạng thái</MudTh>
+        <MudTh>Thao tác</MudTh>
+    </HeaderContent>
+    <RowTemplate Context="item">
+        <MudTd DataLabel="Mã">
+            <strong>@item.Code</strong>
+            @if (item.IsSystemReason)
+            {
+                <small class="table-subline">System</small>
+            }
+        </MudTd>
+        <MudTd DataLabel="Tên">@item.Name</MudTd>
+        <MudTd DataLabel="Phân loại">@item.Category</MudTd>
+        <MudTd DataLabel="Nhóm">@item.Kind</MudTd>
+        <MudTd DataLabel="Mô tả">@item.Description</MudTd>
+        <MudTd DataLabel="Trạng thái">
+            <StatusChip Text="@item.Status"
+                        Kind="@(item.Status == "Active" ? SemanticKind.Success : SemanticKind.Warning)" />
+        </MudTd>
+        <MudTd DataLabel="Thao tác">
+            <AuthorizeAction Policy="@Capabilities.MasterDataWrite">
+                <MasterEditActions Kind="MasterEditKind.DowntimeReason" Id="item.Id" Status="@item.Status"
+                                   EditLabel="Cập nhật lý do dừng máy" ActionLabel="@($"Thao tác {item.Code}")" OnChanged="ReloadAsync">
+                    @if (!item.IsSystemReason)
+                    {
+                        <RowAction Label="Xóa lý do dừng"
+                                       Icon="@Icons.Material.Filled.Delete" Color="Color.Error"
+                                       OnClick="@(() => DeleteAsync(item))" />
+                    }
+                </MasterEditActions>
+            </AuthorizeAction>
+        </MudTd>
+    </RowTemplate>
+</PageTable>

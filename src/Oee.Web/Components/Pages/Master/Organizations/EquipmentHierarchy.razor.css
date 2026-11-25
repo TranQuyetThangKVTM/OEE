@@ -1,0 +1,58 @@
+::deep .hierarchy-guide { display:flex; flex-wrap:wrap; align-items:center; gap:10px; padding:12px 18px; border-radius:12px; }
+.hierarchy-level { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; }
+.hierarchy-level--enterprise { color:var(--mud-palette-info); }
+.hierarchy-level--site { color:var(--mud-palette-success); }
+.hierarchy-level--area { color:var(--mud-palette-secondary); }
+.hierarchy-level--workcenter { color:var(--mud-palette-warning); }
+.hierarchy-level--workunit { color:var(--mud-palette-text-secondary); }
+::deep .hierarchy-guide-arrow { color:var(--mud-palette-text-disabled); }
+.hierarchy-filters { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:12px; width:100%; }
+::deep .hierarchy-search { min-width:0; width:100%; }
+::deep .hierarchy-panel { border-radius:12px; overflow:hidden; }
+.hierarchy-context { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; padding:14px 18px; border-bottom:1px solid var(--mud-palette-lines-default); background:var(--mud-palette-background-grey); }
+.hierarchy-path { display:flex; align-items:center; gap:6px; min-width:0; color:var(--mud-palette-text-secondary); font-size:13px; }
+.hierarchy-path-part { font-weight:600; }
+.hierarchy-summary { font-size:12px; color:var(--mud-palette-text-secondary); }
+.hierarchy-bulk-bar { display:flex; align-items:center; flex-wrap:wrap; gap:10px; padding:8px 18px; border-bottom:1px solid var(--mud-palette-lines-default); }
+.hierarchy-selection-count { flex:1; font-size:12px; color:var(--mud-palette-text-secondary); }
+.hierarchy-check { flex:0 0 auto; }
+::deep .hierarchy-tree { padding:10px; }
+::deep .hierarchy-tree .mud-treeview-item-content { border-radius:8px; padding:6px 10px; min-height:66px; border-bottom:1px solid var(--mud-palette-lines-default); }
+::deep .hierarchy-tree .mud-treeview-item-selected { box-shadow:inset 3px 0 var(--mud-palette-info); }
+.hierarchy-node { display:flex; align-items:center; gap:18px; width:100%; min-width:0; }
+.hierarchy-identity { flex:1; min-width:120px; }
+.hierarchy-node-heading { display:flex; align-items:baseline; gap:8px; min-width:0; }
+.hierarchy-node-name { flex:1; min-width:0; font-size:14px; font-weight:600; overflow-wrap:anywhere; color:var(--mud-palette-text-primary); }
+.hierarchy-node-separator, .hierarchy-detail-separator { color:var(--mud-palette-text-disabled); }
+.hierarchy-node-description { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; overflow-wrap:anywhere; white-space:pre-line; margin-top:3px; font-size:12px; line-height:1.5; color:var(--mud-palette-text-secondary); }
+::deep .hierarchy-item--enterprise > .mud-treeview-item-content .hierarchy-node-name { font-weight:700; }
+.hierarchy-node-details { display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin-top:4px; font-size:12px; }
+.hierarchy-code { max-width:40%; font-family:Consolas,ui-monospace,monospace; font-size:13px; color:var(--mud-palette-text-secondary); font-weight:600; overflow-wrap:anywhere; }
+.hierarchy-kind { font-size:11px; font-weight:600; padding:2px 7px; border-radius:5px; background:var(--mud-palette-background-grey); color:var(--mud-palette-text-secondary); }
+.hierarchy-kind--enterprise { color:var(--mud-palette-info); }
+.hierarchy-kind--site { color:var(--mud-palette-success); }
+.hierarchy-kind--area { color:var(--mud-palette-secondary); }
+.hierarchy-kind--workcenter { color:var(--mud-palette-warning); }
+.hierarchy-child-count { color:var(--mud-palette-text-secondary); }
+.hierarchy-status { flex:0 0 110px; }
+.hierarchy-connectivity { display:block; margin:2px 8px 0; font-size:11px; color:var(--mud-palette-text-secondary); }
+.hierarchy-updated { font-size:12px; color:var(--mud-palette-text-secondary); white-space:nowrap; }
+.hierarchy-actions { display:flex; align-items:center; flex:0 0 auto; gap:2px; }
+.hierarchy-footer { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; padding:12px 18px; border-top:1px solid var(--mud-palette-lines-default); font-size:12px; color:var(--mud-palette-text-secondary); }
+@media(max-width:900px) {
+    .hierarchy-filters { grid-template-columns:repeat(2,minmax(0,1fr)); }
+    .hierarchy-node { flex-wrap:wrap; gap:8px; }
+    .hierarchy-identity { flex-basis:calc(100% - 120px); }
+    .hierarchy-updated { flex:1; }
+    ::deep .hierarchy-tree .mud-treeview-item-content { padding:8px 4px; }
+}
+@media(max-width:600px) {
+    ::deep .hierarchy-guide { gap:8px; padding:12px; }
+    .hierarchy-level { font-size:12px; gap:4px; }
+    .hierarchy-context { align-items:flex-start; padding:12px; }
+    .hierarchy-path { flex-wrap:wrap; }
+    .hierarchy-identity { flex-basis:100%; min-width:0; }
+    .hierarchy-footer { padding:12px; }
+    .hierarchy-filters { grid-template-columns:1fr; }
+    ::deep .hierarchy-tree { padding:4px; }
+}

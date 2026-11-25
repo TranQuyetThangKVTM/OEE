@@ -1,0 +1,67 @@
+@namespace Oee.Web.Components.Pages
+@using Oee.Application.Contracts.Audit
+
+@* Dialog dựng nội dung thân thiện hoàn toàn từ AuditLogDetailResponse: snapshot subject, before/after
+   và danh sách field đã lọc. Nó không phụ thuộc entity gốc còn tồn tại. RawJson chỉ có giá trị khi
+   service xác nhận actor có AuditRawJsonRead và dữ liệu nhạy cảm đã bị loại trước khi persist. *@
+<MudDialog Class="audit-detail-dialog">
+    <DialogContent>
+        @if (_loading)
+        {
+            <MudStack AlignItems="AlignItems.Center" Class="pa-6"><MudProgressCircular Indeterminate="true" /></MudStack>
+        }
+        else if (!string.IsNullOrWhiteSpace(_error))
+        {
+            <MudAlert Severity="Severity.Error">@_error</MudAlert>
+        }
+        else if (_detail is not null)
+        {
+            <MudStack Spacing="2">
+                <MudText Typo="Typo.h6">Nhật ký — @_detail.ActionDisplayName @_detail.EntityTypeDisplayName@SubjectTitle()</MudText>
+                <MudPaper Class="pa-3"
+                          Outlined="true">
+                    <MudStack Row="true" Wrap="Wrap.Wrap" Spacing="1" AlignItems="AlignItems.Center">
+                        <StatusChip Text="@_detail.EntityTypeDisplayName" Kind="SemanticKind.Neutral" />
+                        @if (!string.IsNullOrWhiteSpace(_detail.EntitySubject)) { <MudText Typo="Typo.subtitle1"><strong>@_detail.EntitySubject</strong></MudText> }
+                    </MudStack>
+                    <MudText Class="mt-2">
+                        Người dùng <strong>@(_detail.UserName ?? "System")</strong> đã
+                        <StatusChip Text="@_detail.ActionDisplayName" Kind="@ActionKind(_detail.Action)" />
+                        lúc @_detail.Timestamp.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss") từ IP @(_detail.IpAddress ?? "—").
+                    </MudText>
+                    <MudText Typo="Typo.caption">Loại: @_detail.EntityType · ID: @_detail.EntityId</MudText>
+                </MudPaper>
+
+                <MudText Typo="Typo.overline">@SectionTitle() · @_detail.Fields.Count trường</MudText>
+                <MudTable T="AuditFieldChangeResponse" Items="_detail.Fields"
+                          Dense="true" Breakpoint="Breakpoint.Sm"
+                          Hover="true">
+                    <HeaderContent>
+                        <MudTh>Trường</MudTh>
+                        @if (IsCreate()) { <MudTh>Giá trị tạo mới</MudTh> }
+                        else if (IsDelete()) { <MudTh>Giá trị trước khi xóa</MudTh> }
+                        else { <MudTh>Giá trị cũ</MudTh><MudTh>Giá trị mới</MudTh> }
+                    </HeaderContent>
+                    <RowTemplate Context="field">
+                        <MudTd DataLabel="Trường"><strong>@field.DisplayName</strong><small class="table-subline">@field.PropertyName</small></MudTd>
+                        @if (IsCreate()) { <MudTd DataLabel="Giá trị tạo mới">@Value(field.After)</MudTd> }
+                        else if (IsDelete()) { <MudTd DataLabel="Giá trị trước khi xóa"><span class="audit-deleted-value">@Value(field.Before)</span></MudTd> }
+                        else { <MudTd DataLabel="Giá trị cũ">@Value(field.Before)</MudTd><MudTd DataLabel="Giá trị mới">@Value(field.After)</MudTd> }
+                    </RowTemplate>
+                    <NoRecordsContent><EmptyState Title="Không có thay đổi chi tiết" /></NoRecordsContent>
+                </MudTable>
+
+                @if (_detail.RawJson is not null)
+                {
+                    <MudExpansionPanels>
+                        <MudExpansionPanel Text="JSON gốc (dành cho IT)"
+                                           Icon="@Icons.Material.Filled.DataObject">
+                            <pre class="audit-raw-json">@_detail.RawJson</pre>
+                        </MudExpansionPanel>
+                    </MudExpansionPanels>
+                }
+            </MudStack>
+        }
+    </DialogContent>
+    <DialogActions><MudButton OnClick="Close">Đóng</MudButton></DialogActions>
+</MudDialog>

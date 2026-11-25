@@ -1,0 +1,224 @@
+@namespace Oee.Web.Components.Pages.Master
+@page "/equipment/hierarchy"
+@using Oee.Application.Contracts.Modules
+@attribute [Authorize]
+@implements IDisposable
+@inject Oee.Application.Modules.IEquipmentHierarchyQueryService TreeQuery
+@inject Oee.Application.Common.IUseCaseExecutor Commands
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject ILogger<EquipmentHierarchy> Logger
+
+<PageTitle>Cây cơ cấu tổ chức</PageTitle>
+
+<section class="equipment-hierarchy">
+<PageHeader Title="Cơ cấu tổ chức" Subtitle="Quản lý doanh nghiệp, nhà máy và đơn vị sản xuất trên cùng một cây."
+            RefreshDisabled="_busy" OnRefresh="ReloadAsync">
+    <Actions>
+        <AuthorizeAction Policy="@Capabilities.MasterDataWrite">
+            <MudButton Size="Size.Small"
+                       Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
+                       Disabled="_busy"
+                       OnClick="@(() => CreateAsync(null))">
+                Thêm Enterprise
+            </MudButton>
+        </AuthorizeAction>
+    </Actions>
+</PageHeader>
+
+<MudPaper Class="hierarchy-guide mb-3" Elevation="0"
+          Outlined="true">
+    @foreach (var kind in Enum.GetValues<EquipmentHierarchyKind>())
+    {
+        <div class="@($"hierarchy-level hierarchy-level--{LevelClass(kind)}")">
+            <MudIcon Size="Size.Small" Icon="@NodeIcon(kind)" />
+            <span>@KindLabel(kind)</span>
+        </div>
+        @if (kind != EquipmentHierarchyKind.WorkUnit)
+        {
+            <MudIcon Class="hierarchy-guide-arrow" Size="Size.Small"
+                     Icon="@Icons.Material.Filled.ChevronRight" />
+        }
+    }
+</MudPaper>
+
+<PageFilter>
+    <div class="hierarchy-filters" role="search" aria-label="Tìm kiếm theo năm cấp">
+        @foreach (var kind in Enum.GetValues<EquipmentHierarchyKind>())
+        {
+            <MudTextField T="string" Value="@_searches[(int)kind]" Label="@KindLabel(kind)" Placeholder="Mã hoặc tên"
+                          Class="hierarchy-search" Margin="Margin.Dense"
+                          Variant="Variant.Outlined" Adornment="Adornment.Start" AdornmentIcon="@NodeIcon(kind)"
+                          Immediate="true" DebounceInterval="500" Clearable="true" Disabled="_mutating"
+                          ValueChanged="@(value => ApplySearchAsync(kind, value))" />
+        }
+    </div>
+</PageFilter>
+
+@if (_error is not null)
+{
+    <MudAlert Class="mb-3" Dense="true"
+              Severity="Severity.Error">
+        @_error
+    </MudAlert>
+}
+
+<MudPaper Class="hierarchy-panel" Elevation="0"
+          Outlined="true">
+    <div class="hierarchy-context">
+        <div class="hierarchy-path" aria-label="Đường dẫn đang chọn">
+            <MudIcon Size="Size.Small" Icon="@Icons.Material.Filled.AccountTree" Color="Color.Primary" />
+            @if (_selected is null)
+            {
+                <span>Chọn một dòng để xem đường dẫn</span>
+            }
+            else
+            {
+                @foreach (var node in SelectedPath())
+                {
+                    <span class="hierarchy-path-part" title="@node.Name">@node.Code</span>
+                    @if (node != _selected)
+                    {
+                        <MudIcon Size="Size.Small" Icon="@Icons.Material.Filled.ChevronRight" />
+                    }
+                }
+            }
+        </div>
+        <span class="hierarchy-summary">@_totalRoots doanh nghiệp · @_nodes.Count nút đã tải</span>
+    </div>
+
+    <AuthorizeAction Policy="@Capabilities.MasterDataWrite">
+        <div class="hierarchy-bulk-bar" role="group" aria-label="Xóa nhiều dòng">
+            <MudCheckBox T="bool" Value="AllVisibleChecked" Label="Chọn dòng đang hiển thị" aria-label="Chọn tất cả dòng đang hiển thị"
+                         Size="Size.Small" Dense="true"
+                         Color="Color.Primary"
+                         Disabled="@(_busy || _roots.Count == 0)"
+                         ValueChanged="CheckVisible" />
+            <span class="hierarchy-selection-count">Đã chọn @_checked.Count dòng</span>
+            <MudButton Size="Size.Small"
+                       Variant="Variant.Text"
+                       Disabled="@(_busy || _checked.Count == 0)"
+                       OnClick="ClearChecked">Bỏ chọn</MudButton>
+            <MudButton Size="Size.Small"
+                       Variant="Variant.Filled" Color="Color.Error" StartIcon="@Icons.Material.Filled.DeleteOutline"
+                       Disabled="@(_busy || _checked.Count == 0)"
+                       OnClick="DeleteCheckedAsync">Xóa đã chọn (@_checked.Count)</MudButton>
+        </div>
+    </AuthorizeAction>
+
+    @if (_loading)
+    {
+        <MudProgressLinear Class="mb-2"
+                           Color="Color.Primary"
+                           Indeterminate="true" />
+    }
+    <MudTreeView T="EquipmentHierarchyNode" @key="_requests"
+                 Items="_roots" SelectedValue="_selected" ServerData="LoadServerDataAsync" aria-label="Cây Enterprise Site Area WorkCenter WorkUnit"
+                 Class="hierarchy-tree"
+                 Color="Color.Info"
+                 Dense="true" Hover="true" SelectionMode="SelectionMode.SingleSelection" Disabled="_busy"
+                 SelectedValueChanged="Select">
+        <ItemTemplate Context="data">
+            @{ var item = (EquipmentHierarchyTreeItem)data; }
+            @if (item.MoreFor is { } parent)
+            {
+                <MudTreeViewItem T="EquipmentHierarchyNode" Text="@item.Text"
+                                 Class="hierarchy-more-item"
+                                 ReadOnly="true" CanExpand="false">
+                    <BodyContent>
+                        <div @onclick:stopPropagation="true">
+                            <MudButton aria-label="@($"{(item.Retry ? "Thử lại nhánh" : "Xem thêm con")} {parent.Code}")"
+                                       Size="Size.Small"
+                                       Variant="Variant.Text" Color="Color.Primary" StartIcon="@(item.Retry ? Icons.Material.Filled.Refresh : Icons.Material.Filled.MoreHoriz)"
+                                       Disabled="@(_busy || IsLoading(parent))"
+                                       OnClick="@(() => LoadMoreAsync(parent))">
+                                @(item.Retry ? "Thử lại nhánh" : "Xem thêm con") @parent.Code
+                            </MudButton>
+                        </div>
+                    </BodyContent>
+                </MudTreeViewItem>
+            }
+            else if (item.Value is { } node)
+            {
+                <MudTreeViewItem T="EquipmentHierarchyNode" @key="node.Id" Value="node" Text="@node.Name" Items="item.Children"
+                                 aria-label="@($"{KindLabel(node.Kind)} {node.Code}")" aria-expanded="@item.Expanded.ToString().ToLowerInvariant()"
+                                 Class="@($"hierarchy-item hierarchy-item--{LevelClass(node.Kind)}")"
+                                 Icon="@NodeIcon(node.Kind)" IconColor="@NodeColor(node.Kind)"
+                                 CanExpand="item.Expandable" Expanded="item.Expanded"
+                                 ExpandedChanged="@(expanded => ExpandedChanged(item, expanded))" ItemsChanged="@(children => item.Children = children)">
+                    <BodyContent>
+                        <div class="hierarchy-node" data-node="@node.Code">
+                            <AuthorizeAction Policy="@Capabilities.MasterDataWrite">
+                                <div class="hierarchy-check" @onclick:stopPropagation="true" @ondblclick:stopPropagation="true" @onkeydown:stopPropagation="true">
+                                    <MudCheckBox T="bool" Value="@_checked.ContainsKey(Key(node))" aria-label="@($"Chọn xóa {node.Code}")"
+                                                 Size="Size.Small" Dense="true"
+                                                 Color="Color.Primary"
+                                                 Disabled="_busy"
+                                                 ValueChanged="@(value => CheckNode(node, value))" />
+                                </div>
+                            </AuthorizeAction>
+                            <div class="hierarchy-identity">
+                                <div class="hierarchy-node-heading">
+                                    <span class="hierarchy-code">@node.Code</span>
+                                    <span class="hierarchy-node-separator" aria-hidden="true">–</span>
+                                    <span class="hierarchy-node-name">@node.Name</span>
+                                </div>
+                                @if (!string.IsNullOrWhiteSpace(node.Description))
+                                {
+                                    <span class="hierarchy-node-description" title="@node.Description">@node.Description</span>
+                                }
+                                <div class="hierarchy-node-details">
+                                    <span class="@($"hierarchy-kind hierarchy-kind--{LevelClass(node.Kind)}")">@KindLabel(node.Kind)</span>
+                                    @if (node.ChildCount > 0)
+                                    {
+                                        <span class="hierarchy-detail-separator" aria-hidden="true">·</span>
+                                        <span class="hierarchy-child-count">@node.ChildCount con</span>
+                                    }
+                                </div>
+                            </div>
+                            <div class="hierarchy-status">
+                                <StatusChip Text="@StatusText(node)" Kind="@StatusKind(node)" />
+                                @if (node.Kind == EquipmentHierarchyKind.WorkUnit)
+                                {
+                                    <span class="hierarchy-connectivity">@node.ConnectivityState</span>
+                                }
+                            </div>
+                            <span class="hierarchy-updated" title="@node.UpdatedAt.ToLocalTime().ToString("g")">@node.UpdatedAt.ToLocalTime().ToString("dd/MM/yyyy")</span>
+                            <AuthorizeAction Policy="@Capabilities.MasterDataWrite">
+                                <div class="hierarchy-actions" @onclick:stopPropagation="true" @ondblclick:stopPropagation="true">
+                                    <RowActionMenu Label="@($"Thao tác {node.Code}")" Disabled="_busy">
+                                        <RowAction Label="@($"Sửa {node.Code}")" Icon="@Icons.Material.Filled.Edit" OnClick="@(() => EditAsync(node))" />
+                                        <RowAction Label="@($"Thêm con {node.Code}")" Icon="@Icons.Material.Filled.Add" Color="Color.Primary"
+                                                   Disabled="@(node.Kind == EquipmentHierarchyKind.WorkUnit || node.Status != "Active")" OnClick="@(() => CreateAsync(node))" />
+                                        <RowAction Label="@(node.Status == "Active" ? "Tạm ngưng hoạt động" : "Kích hoạt lại")"
+                                                   Icon="@Icons.Material.Filled.ToggleOn" OnClick="@(() => ChangeStatusAsync(node))" />
+                                        <RowAction Label="@($"Xóa {node.Code}")" Icon="@Icons.Material.Filled.DeleteOutline" Color="Color.Error"
+                                                   Disabled="@(node.ChildCount > 0)" OnClick="@(() => DeleteAsync(node))" />
+                                    </RowActionMenu>
+                                </div>
+                            </AuthorizeAction>
+                        </div>
+                    </BodyContent>
+                </MudTreeViewItem>
+            }
+        </ItemTemplate>
+    </MudTreeView>
+    @if (!_loading && _roots.Count == 0)
+    {
+        <MudText Class="pa-6" Align="Align.Center"
+                 Typo="Typo.body2" Color="Color.Secondary">
+            @(_error is null ? "Không tìm thấy cơ cấu tổ chức phù hợp." : "Chưa tải được dữ liệu. Hãy thử làm mới.")
+        </MudText>
+    }
+    @if (RootPageCount > 1)
+    {
+        <div class="hierarchy-footer">
+            <MudPagination Count="RootPageCount" Selected="_rootPage" aria-label="Trang doanh nghiệp"
+                           Size="Size.Small"
+                           Color="Color.Primary"
+                           Disabled="_busy"
+                           SelectedChanged="ChangeRootPageAsync" />
+        </div>
+    }
+</MudPaper>
+</section>

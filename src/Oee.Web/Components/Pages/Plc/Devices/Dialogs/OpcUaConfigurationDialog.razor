@@ -1,0 +1,210 @@
+@namespace Oee.Web.Components.Pages.Plc
+@using Oee.Application.PlcIntegration
+@using Oee.Application.Contracts.PlcIntegration
+@inject Oee.Application.Common.IUseCaseExecutor Plc
+@inject IDialogService DialogService
+
+<MudDialog Class="opc-config-dialog">
+    <TitleContent>
+        <div class="opc-dialog-title">
+            <MudIcon Icon="@Icons.Material.Filled.SettingsInputComponent" />
+            <div>
+                <MudText Typo="Typo.h6">@DialogTitle</MudText>
+                <MudText Typo="Typo.caption">Chọn tag từ cây OPC UA · thiết lập đầu vào và đầu ra</MudText>
+            </div>
+        </div>
+    </TitleContent>
+    <DialogContent>
+        @if (!string.IsNullOrWhiteSpace(_error))
+        {
+            <MudAlert Dense="true" Class="mb-3"
+                      Severity="Severity.Error" Variant="Variant.Outlined">@_error</MudAlert>
+        }
+        @if (!string.IsNullOrWhiteSpace(_testMessage))
+        {
+            <MudAlert Dense="true" Class="mb-3"
+                      Severity="Severity.Success">@_testMessage</MudAlert>
+        }
+        @if (_loading)
+        {
+            <LoadingOverlay Visible="true" />
+        }
+        else
+        {
+            @if (_status?.CounterDiscontinuityPending == true)
+            {
+                <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Dense="true" Class="mb-3">
+                    <MudStack Spacing="2">
+                        <MudText Typo="Typo.body2">Counter nguồn đã giảm. Sản lượng đang giữ mốc tổng @_status.LastTotalCounter?.ToString("N0") / lỗi @_status.LastDefectCounter?.ToString("N0") để tránh cộng trùng.</MudText>
+                        <MudText Typo="Typo.caption">Hệ thống tự đọc lại counter. Nếu OPC tạm trả 0 rồi khôi phục số cũ, chỉ phần tăng mới được tính. Lưu mapping không đặt lại mốc; nếu PLC thực sự reset, cần kiểm tra dữ liệu trước khi xử lý.</MudText>
+                    </MudStack>
+                </MudAlert>
+            }
+            @if (!MappingId.HasValue)
+            {
+            <div class="opc-identity-grid">
+                <MudSelect T="string" @bind-Value="_form.ConnectionId" Label="Kết nối OPC UA"
+                           Margin="Margin.Dense" Dense="true"
+                           Variant="Variant.Outlined"
+                           Required="true">
+                    @foreach (PlcLookup connection in Lookups.Connections)
+                    {
+                        <MudSelectItem Value="@connection.Id.ToString()">@connection.Code — @connection.Name</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudSelect T="string" @bind-Value="_form.WorkUnitId" @bind-Value:after="RefreshDialogTitle" Label="Thiết bị OEE"
+                           Margin="Margin.Dense" Dense="true"
+                           Variant="Variant.Outlined"
+                           Required="true">
+                    @foreach (PlcLookup workUnit in Lookups.WorkUnits)
+                    {
+                        <MudSelectItem Value="@workUnit.Id.ToString()">@workUnit.Code — @workUnit.Name</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudTextField @bind-Value="_form.ExternalDeviceId" Label="Mã thiết bị PLC"
+                              Margin="Margin.Dense"
+                              Variant="Variant.Outlined"
+                              Required="true" />
+                <MudSelect T="string" @bind-Value="_form.ProductId" Label="Sản phẩm mặc định"
+                           Margin="Margin.Dense" Dense="true"
+                           Variant="Variant.Outlined"
+                           Clearable="true">
+                    @foreach (PlcLookup product in Lookups.Products)
+                    {
+                        <MudSelectItem Value="@product.Id.ToString()">@product.Code — @product.Name</MudSelectItem>
+                    }
+                </MudSelect>
+            </div>
+            }
+            @if (SelectedConnection is not null)
+            {
+                <div class="opc-endpoint-strip">
+                    <div class="opc-endpoint-text">
+                        <MudIcon Size="Size.Small" Icon="@Icons.Material.Filled.Link" />
+                        <span>@SelectedConnection.EndpointUrl</span>
+                        <small>@SelectedConnection.SecurityMode · @SelectedConnection.AuthenticationType</small>
+                    </div>
+                    <MudButton Size="Size.Small"
+                               Variant="Variant.Text" StartIcon="@Icons.Material.Filled.NetworkPing"
+                               Disabled="_testing"
+                               OnClick="TestConnectionAsync">@(_testing ? "Đang kiểm tra…" : "Kiểm tra kết nối")</MudButton>
+                </div>
+            }
+            <section class="opc-direction-card opc-direction-read" aria-label="Đầu vào đọc từ PLC">
+                <header class="opc-direction-header">
+                    <MudIcon Icon="@Icons.Material.Filled.ArrowDownward" />
+                    <div><h3>Đầu vào · Đọc từ PLC</h3><p>Trạng thái chạy và bộ đếm tổng là bắt buộc. Các tag còn lại tùy chọn.</p></div>
+                    <MudChip T="string" Size="Size.Small"
+                             Color="Color.Info" Variant="Variant.Outlined">@ConfiguredRead / 5 tag</MudChip>
+                </header>
+                <div class="opc-direction-body">
+                    <div class="opc-tag-group">
+                        <h4>Trạng thái thiết bị</h4>
+                        <TagConfigurationRow Tag="@GetTag("Running")" DataTypes="@DataTypes" ConnectionId="@SelectedConnectionId" CanBrowse="@CanBrowse" BrowseRequested="@(() => BrowseAsync(GetTag("Running")))" />
+                        <TagConfigurationRow Tag="@GetTag("FaultCode")" DataTypes="@DataTypes" ConnectionId="@SelectedConnectionId" CanBrowse="@CanBrowse" BrowseRequested="@(() => BrowseAsync(GetTag("FaultCode")))" />
+                        <MudSelect T="string" @bind-Value="_form.FaultCodeFormat" Label="Định dạng mã lỗi"
+                                   Margin="Margin.Dense" Dense="true" Class="opc-inline-setting"
+                                   Variant="Variant.Outlined">
+                            <MudSelectItem Value="@("Auto")">Tự động</MudSelectItem>
+                            <MudSelectItem Value="@("NumericDecimal")">Số thập phân</MudSelectItem>
+                            <MudSelectItem Value="@("Hex")">Hex</MudSelectItem>
+                            <MudSelectItem Value="@("Text")">Chuỗi ký tự</MudSelectItem>
+                        </MudSelect>
+                    </div>
+                    <div class="opc-tag-group">
+                        <h4>Bộ đếm sản lượng</h4>
+                        <TagConfigurationRow Tag="@GetTag("TotalCounter")" DataTypes="@DataTypes" ConnectionId="@SelectedConnectionId" CanBrowse="@CanBrowse" BrowseRequested="@(() => BrowseAsync(GetTag("TotalCounter")))" />
+                        <TagConfigurationRow Tag="@GetTag("DefectCounter")" DataTypes="@DataTypes" ConnectionId="@SelectedConnectionId" CanBrowse="@CanBrowse" BrowseRequested="@(() => BrowseAsync(GetTag("DefectCounter")))" />
+                        <MudSelect T="string" @bind-Value="_form.CounterMode" Label="Chế độ bộ đếm"
+                                   Margin="Margin.Dense" Dense="true" Class="opc-inline-setting"
+                                   Variant="Variant.Outlined">
+                            <MudSelectItem Value="@("Cumulative")">Tích lũy — tính chênh lệch</MudSelectItem>
+                            <MudSelectItem Value="@("ResetPerShift")">Reset theo ca</MudSelectItem>
+                            <MudSelectItem Value="@("ResetDaily")">Reset theo ngày</MudSelectItem>
+                        </MudSelect>
+                    </div>
+                    <div class="opc-tag-group">
+                        <h4>Định danh sản phẩm</h4>
+                        <TagConfigurationRow Tag="@GetTag("ProductCode")" DataTypes="@DataTypes" ConnectionId="@SelectedConnectionId" CanBrowse="@CanBrowse" BrowseRequested="@(() => BrowseAsync(GetTag("ProductCode")))" />
+                    </div>
+                </div>
+            </section>
+            <section class="opc-direction-card opc-direction-write" aria-label="Đầu ra ghi xuống PLC HMI">
+                <header class="opc-direction-header">
+                    <MudIcon Icon="@Icons.Material.Filled.ArrowUpward" />
+                    <div><h3>Đầu ra · Ghi xuống PLC / HMI</h3><p>Chọn tag hiển thị chỉ số trên HMI. Để trống các tag không sử dụng.</p></div>
+                    <MudChip T="string" Size="Size.Small"
+                             Color="Color.Success" Variant="Variant.Outlined">@ConfiguredWrite / 9 tag</MudChip>
+                </header>
+                <div class="opc-direction-body">
+                    <div class="opc-tag-group">
+                        <h4>Hệ số OEE thời gian thực</h4>
+                        @foreach (string role in new[] { "Oee", "Availability", "Performance", "Quality" })
+                        {
+                            <TagConfigurationRow Tag="@GetTag(role)" DataTypes="@DataTypes" ConnectionId="@SelectedConnectionId" CanBrowse="@CanBrowse" BrowseRequested="@(() => BrowseAsync(GetTag(role)))" />
+                        }
+                    </div>
+                    <div class="opc-tag-group">
+                        <h4>Trạng thái dừng máy</h4>
+                        <TagConfigurationRow Tag="@GetTag("CurrentDowntime")" DataTypes="@DataTypes" ConnectionId="@SelectedConnectionId" CanBrowse="@CanBrowse" BrowseRequested="@(() => BrowseAsync(GetTag("CurrentDowntime")))" />
+                    </div>
+                    <div class="opc-tag-group">
+                        <h4>Sản lượng và mục tiêu</h4>
+                        @foreach (string role in new[] { "GoodQuantity", "TargetQuantity" })
+                        {
+                            <TagConfigurationRow Tag="@GetTag(role)" DataTypes="@DataTypes" ConnectionId="@SelectedConnectionId" CanBrowse="@CanBrowse" BrowseRequested="@(() => BrowseAsync(GetTag(role)))" />
+                        }
+                    </div>
+                    <div class="opc-tag-group">
+                        <h4>Độ tin cậy thiết bị</h4>
+                        @foreach (string role in new[] { "Mtbf", "Mttr" })
+                        {
+                            <TagConfigurationRow Tag="@GetTag(role)" DataTypes="@DataTypes" ConnectionId="@SelectedConnectionId" CanBrowse="@CanBrowse" BrowseRequested="@(() => BrowseAsync(GetTag(role)))" />
+                        }
+                    </div>
+                </div>
+            </section>
+            <MudExpansionPanels Class="opc-advanced" Elevation="0">
+                <MudExpansionPanel Text="Thiết lập nâng cao">
+                    <div class="opc-advanced-grid">
+                        <MudNumericField T="int" @bind-Value="_form.DebounceSamples" Label="Số mẫu xác nhận trạng thái"
+                                         Margin="Margin.Dense"
+                                         Variant="Variant.Outlined"
+                                         Min="1" Max="20" />
+                        <MudCheckBox T="bool" @bind-Value="_form.ZeroNoFault" Label="Mã lỗi 0 = không có lỗi"
+                                     Size="Size.Small" Dense="true" />
+                        <MudCheckBox T="bool" @bind-Value="_form.Active" Label="Kích hoạt ánh xạ"
+                                     Size="Size.Small" Dense="true" />
+                        <MudTextField @bind-Value="_form.Note" Label="Ghi chú"
+                                      Margin="Margin.Dense" Class="opc-wide" Lines="2"
+                                      Variant="Variant.Outlined" />
+                    </div>
+                </MudExpansionPanel>
+            </MudExpansionPanels>
+            @if (_status is not null)
+            {
+                <MudPaper Outlined="true" Elevation="0" Class="pa-3 mt-3">
+                    <MudStack Spacing="1">
+                        <MudText Typo="Typo.body2">Nhận OPC gần nhất: @StatusTime(_status.LastReceivedAt)</MudText>
+                        <MudText Typo="Typo.body2">Counter được chấp nhận gần nhất (giờ nguồn): @StatusTime(_status.LastReadAt)</MudText>
+                        <MudText Typo="Typo.caption">Mốc tổng: @(_status.LastTotalCounter?.ToString("N0") ?? "—") · Mốc lỗi: @(_status.LastDefectCounter?.ToString("N0") ?? "—")</MudText>
+                        <MudText Typo="Typo.caption">Trạng thái tại lần tải gần nhất; bấm Làm mới để cập nhật.</MudText>
+                        <MudButton Variant="Variant.Text" Size="Size.Small" OnClick="RefreshStatusAsync" Disabled="_saving || _refreshingStatus"
+                                   StartIcon="@Icons.Material.Filled.Refresh">Làm mới trạng thái</MudButton>
+                    </MudStack>
+                </MudPaper>
+            }
+        }
+    </DialogContent>
+    <DialogActions>
+        <div class="opc-dialog-actions">
+            <span class="opc-save-hint">Thay đổi chỉ được áp dụng khi lưu</span>
+            <MudButton Variant="Variant.Text"
+                       Disabled="_saving"
+                       OnClick="Cancel">Hủy</MudButton>
+            <MudButton Color="Color.Primary" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Save"
+                       Disabled="@(_saving || _loading)"
+                       OnClick="SaveAsync">@(_saving ? "Đang lưu…" : "LƯU CẤU HÌNH")</MudButton>
+        </div>
+    </DialogActions>
+</MudDialog>

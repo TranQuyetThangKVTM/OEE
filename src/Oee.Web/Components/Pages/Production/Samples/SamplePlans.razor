@@ -1,0 +1,63 @@
+@namespace Oee.Web.Components.Pages.Production
+@page "/production/plan-templates"
+@using Oee.Application.Contracts.Modules
+@attribute [Authorize]
+@inject Oee.Application.Modules.IProductionModuleQueryService Query
+@inject Oee.Application.Common.IUseCaseExecutor Commands
+@inject IDialogService DialogService
+
+@* Route: /production/plan-templates, yêu cầu ProductionPlanManage. Bảng query mẫu theo server paging;
+   Create mở MudDialog, Delete dùng RowVersion và soft-delete để không làm mất kế hoạch đã sinh từ mẫu. *@
+<PageTitle>Kế hoạch sản xuất mẫu</PageTitle>
+<PageHeader OnRefresh="Reload" Title="Kế hoạch sản xuất mẫu" Subtitle="Mẫu phân bổ sản lượng theo thiết bị, sản phẩm và ca">
+    <Actions><AuthorizeAction Policy="@Capabilities.ProductionPlanManage">
+<MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Add"
+               OnClick="OpenCreateDialogAsync">Thêm mẫu</MudButton>
+</AuthorizeAction></Actions>
+    <Metrics><MetricCard Label="Kế hoạch mẫu" Value="@totalCount.ToString("N0")" Icon="@Icons.Material.Filled.ContentCopy" Color="Color.Info" /></Metrics>
+</PageHeader>
+
+@if (!string.IsNullOrWhiteSpace(error))
+{
+    <MudAlert Dense="true" Class="my-3"
+              Severity="Severity.Error" Variant="Variant.Outlined">@error</MudAlert>
+}
+<PageFilter>
+    <MudTextField T="string" @bind-Value="search" Label="Mã hoặc tên mẫu"
+                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                  Immediate="true" DebounceInterval="500"
+                  @bind-Value:after="ApplyFiltersAsync" />
+</PageFilter>
+
+<PageTable TItem="SamplePlanListItem" @ref="table" ItemsProvider="Load" AriaLabel="Danh sách kế hoạch sản xuất mẫu" EmptyTitle="Chưa có kế hoạch mẫu">
+    <HeaderContent>
+        <MudTh><MudTableSortLabel T="SamplePlanListItem" SortLabel="code">Mã</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="SamplePlanListItem" SortLabel="name">Tên mẫu</MudTableSortLabel></MudTh>
+        <MudTh>Số dòng</MudTh><MudTh>Số máy</MudTh><MudTh>Số ca</MudTh><MudTh>Tổng SL KH</MudTh>
+        <MudTh><MudTableSortLabel T="SamplePlanListItem" SortLabel="updated">Cập nhật</MudTableSortLabel></MudTh><MudTh>Thao tác</MudTh>
+    </HeaderContent>
+    <RowTemplate Context="item">
+        <MudTd DataLabel="Mã"><strong>@item.Code</strong></MudTd><MudTd DataLabel="Tên">@item.Name<small class="table-subline">@item.Description</small></MudTd>
+        <MudTd DataLabel="Số dòng"><MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary">@item.ItemCount</MudChip></MudTd>
+        <MudTd DataLabel="Số máy">@item.WorkUnitCount</MudTd><MudTd DataLabel="Số ca">@item.ShiftCount</MudTd>
+        <MudTd DataLabel="Tổng SL KH"><MudText Class="sample-item-code" Typo="Typo.body2">@item.TotalPlannedQuantity.ToString("N0")</MudText></MudTd>
+        <MudTd DataLabel="Cập nhật">@item.UpdatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+            @if (!string.IsNullOrWhiteSpace(item.UpdatedBy)) { <MudText Class="mud-text-secondary" Typo="Typo.caption">@item.UpdatedBy</MudText> }
+        </MudTd>
+        <MudTd DataLabel="Thao tác">
+            <RowActionMenu Label="@($"Thao tác mẫu {item.Code}")">
+                <RowAction Href="@($"/production/plan-templates/{item.Id}")" Label="Mở chi tiết mẫu"
+                           Icon="@Icons.Material.Filled.OpenInNew" Color="Color.Primary" />
+                <AuthorizeAction Policy="@Capabilities.ProductionPlanManage">
+                    <RowAction OnClick="@(() => CopyAsync(item.Id))" Label="Sao chép mẫu"
+                               Icon="@Icons.Material.Filled.ContentCopy" />
+                </AuthorizeAction>
+                <AuthorizeAction Policy="@Capabilities.ProductionPlanManage">
+                    <RowAction Label="Xóa mẫu"
+                               Icon="@Icons.Material.Filled.Delete" Color="Color.Error"
+                               OnClick="() => DeleteAsync(item)" />
+                </AuthorizeAction>
+            </RowActionMenu>
+        </MudTd>
+    </RowTemplate>
+</PageTable>

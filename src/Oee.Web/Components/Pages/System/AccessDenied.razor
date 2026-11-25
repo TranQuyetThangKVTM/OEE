@@ -1,0 +1,19 @@
+@namespace Oee.Web.Components.Pages
+@page "/access-denied"
+@attribute [AllowAnonymous]
+
+@* Trang đích khi authentication có nhưng authorization policy không đạt.
+   Việc hiển thị trang này không thay thế kiểm tra policy trong Application/API. *@
+<PageTitle>Không có quyền truy cập</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="py-12">
+    <MudPaper Class="pa-8 text-center" Elevation="1">
+        <EmptyState Icon="@Icons.Material.Outlined.Lock"
+                    Title="Không có quyền truy cập"
+                    Message="Tài khoản của bạn không có quyền mở trang hoặc thực hiện thao tác này." />
+        <MudButton Href="/"
+                   Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Home">
+            Về bảng điều khiển
+        </MudButton>
+    </MudPaper>
+</MudContainer>

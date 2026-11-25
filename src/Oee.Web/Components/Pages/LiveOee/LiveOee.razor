@@ -1,0 +1,19 @@
+@namespace Oee.Web.Components.Pages
+@page "/live-oee"
+@page "/integration/plc-live"
+@using Oee.Application.Contracts.Modules
+@attribute [Authorize]
+@implements IDisposable
+@inject Oee.Web.Realtime.RealtimeOeeState Realtime
+
+@* Live OEE dùng RealtimeOeeState được publisher cập nhật; component không tạo timer/query riêng. *@
+<PageTitle>Live OEE</PageTitle>
+
+@if (_model is null)
+{
+    <LoadingOverlay Visible="true" />
+}
+else
+{
+    <LiveOeeBoard Model="_model" />
+}

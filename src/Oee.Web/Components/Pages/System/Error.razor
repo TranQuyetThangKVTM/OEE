@@ -1,0 +1,29 @@
+@namespace Oee.Web.Components.Pages
+@page "/Error"
+@using System.Diagnostics
+
+@* Trang lỗi tổng quát cố ý không hiển thị exception/stack trace/secret.
+   RequestId giúp quản trị viên đối chiếu structured log và correlation trace phía server. *@
+<PageTitle>Lỗi hệ thống</PageTitle>
+
+<PageHeader Title="Không thể xử lý yêu cầu"
+            Subtitle="Đã xảy ra lỗi ngoài dự kiến trong quá trình xử lý." />
+
+<MudAlert Class="mt-3"
+          Severity="Severity.Error" Variant="Variant.Outlined">
+    Vui lòng thử lại. Nếu lỗi tiếp tục xảy ra, hãy gửi mã yêu cầu cho quản trị viên.
+</MudAlert>
+
+@if (ShowRequestId)
+{
+    <MudPaper Class="pa-4 mt-3" Elevation="0">
+        <MudText Typo="Typo.overline">Mã yêu cầu</MudText>
+        <MudText Typo="Typo.body2"><code>@RequestId</code></MudText>
+    </MudPaper>
+}
+
+<MudButton Href="/"
+           Class="mt-3"
+           Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Home">
+    Về bảng điều khiển
+</MudButton>

@@ -1,0 +1,32 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <PackageReference Include="PDFsharp" />
+    <PackageReference Include="PDFsharp-MigraDoc" />
+    <PackageReference Include="ClosedXML" />
+    <PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.Client" />
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Reporting\Exports\Fonts\*.ttf" />
+    <None Update="Reporting\Exports\Fonts\LICENSE.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" TargetPath="licenses\NotoSans-OFL.txt" />
+    <None Update="Reporting\Exports\Licenses\PDFsharp-MIT.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" TargetPath="licenses\PDFsharp-MIT.txt" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Oee.Application\Oee.Application.csproj" />
+    <ProjectReference Include="..\Oee.Domain\Oee.Domain.csproj" />
+    <InternalsVisibleTo Include="Oee.Infrastructure.IntegrationTests" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,6 @@
+@namespace Oee.Web.Components.Pages.Reports
+@page "/reports/weekly-kpi"
+@using Oee.Application.Contracts.Reporting
+@attribute [Authorize]
+@* Route cấu hình KPI tuần ISO và tái sử dụng toàn bộ ReportWorkspace/Application Query. *@
+<ReportWorkspace Kind="ReportKind.WeeklyKpi" Title="KPI theo tuần" Subtitle="So sánh OEE và sản lượng theo tuần ISO, từ thứ Hai đến Chủ nhật." />

@@ -1,0 +1,100 @@
+@using System.Security.Claims
+@inject Microsoft.Extensions.Options.IOptions<Oee.Web.Configuration.IdentitySecurityOptions> IdentityOptions
+
+@* Popover tài khoản đọc ClaimsPrincipal từ AuthorizeView: display name, username, email và role chips.
+   Nút quản trị được ẩn theo capability. Logout dùng POST form + antiforgery, không dùng GET. *@
+<AuthorizeView Context="auth">
+    <Authorized>
+        <MudMenu @ref="_userMenu"
+                 AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight">
+            <ActivatorContent>
+                <span class="user-menu-trigger"
+                      role="button"
+                      tabindex="0"
+                      aria-label="Mở menu người dùng"
+                      @onclick="OpenUserMenuAsync"
+                      @onclick:stopPropagation="true"
+                      @onkeydown="OpenUserMenuFromKeyboardAsync"
+                      @onkeydown:stopPropagation="true">
+                    <MudAvatar Size="Size.Medium"
+                               Color="Color.Secondary">
+                        @Initials(auth.User.Identity?.Name)
+                    </MudAvatar>
+                </span>
+            </ActivatorContent>
+            <ChildContent>
+                <div class="user-popover">
+                    <div class="user-popover__hero">
+                        <MudAvatar Color="Color.Secondary">
+                            @Initials(auth.User.Identity?.Name)
+                        </MudAvatar>
+                        <div>
+                            <MudText Typo="Typo.subtitle1">@DisplayName(auth.User)</MudText>
+                            <MudText Typo="Typo.caption">@@@UserName(auth.User)</MudText>
+                        </div>
+                    </div>
+
+                    <MudText Typo="Typo.overline">Vai trò</MudText>
+                    <div class="role-list">
+                        @foreach (string role in Roles(auth.User))
+                        {
+                            <StatusChip Text="@role"
+                                          Kind="@RoleKind(role)" />
+                        }
+                    </div>
+
+                    <MudDivider Class="my-3" />
+                    <MudText Typo="Typo.overline">Email</MudText>
+                    <MudText Typo="Typo.body2">@Email(auth.User)</MudText>
+
+                    <MudDivider Class="my-3" />
+                    <MudText Typo="Typo.overline">Phiên bảo mật</MudText>
+                    <MudText Typo="Typo.body2">
+                        Cookie HTTP-only · sliding expiration @IdentityOptions.Value.CookieHours giờ
+                    </MudText>
+
+                    
+                        <MudStack Row="true" Class="mt-3">
+                            <MudButton Href="/users"
+                                       Size="Size.Small"
+                                       StartIcon="@Icons.Material.Filled.Group">
+                                Người dùng
+                            </MudButton>
+                        </MudStack>
+                    
+                    <RoleGuard Policy="@Capabilities.AuditRead">
+                        <MudStack Row="true" Class="mt-1">
+                            <MudButton Href="/audit"
+                                       Size="Size.Small"
+                                       StartIcon="@Icons.Material.Filled.FactCheck">
+                                Nhật ký
+                            </MudButton>
+                        </MudStack>
+                    </RoleGuard>
+
+                    <MudButton Href="/Account/ChangePassword"
+                               FullWidth="true" Class="mt-3"
+                               Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Password">
+                        Đổi mật khẩu
+                    </MudButton>
+
+                    @* Native form là chủ ý: endpoint logout dùng POST và antiforgery để tránh CSRF. *@
+                    <form method="post" action="/account/logout">
+                        <AntiforgeryToken />
+                        <MudButton FullWidth="true" Class="mt-2"
+                                   Variant="Variant.Filled" Color="Color.Error" StartIcon="@Icons.Material.Filled.Logout"
+                                   ButtonType="ButtonType.Submit">
+                            Đăng xuất
+                        </MudButton>
+                    </form>
+                </div>
+            </ChildContent>
+        </MudMenu>
+    </Authorized>
+    <NotAuthorized>
+        <MudTooltip Text="Đăng nhập">
+            <MudIconButton Href="/Account/Login" aria-label="Đăng nhập"
+                           Icon="@Icons.Material.Filled.AccountCircle" Color="Color.Inherit" />
+        </MudTooltip>
+    </NotAuthorized>
+</AuthorizeView>

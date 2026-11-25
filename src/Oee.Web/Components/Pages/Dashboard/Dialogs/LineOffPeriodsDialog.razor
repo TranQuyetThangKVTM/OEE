@@ -1,0 +1,54 @@
+@namespace Oee.Web.Components.Pages.Dashboard.Dialogs
+@using Oee.Application.Production.LineOff
+@using Oee.Web.Components.Pages.Production
+@inject ProductionPlanCreationRunner Runner
+@inject IDialogService DialogService
+
+<MudDialog>
+    <TitleContent><MudText Typo="Typo.h6">Thời gian Off — @Line</MudText></TitleContent>
+    <DialogContent>
+        <MudStack Spacing="2">
+            <MudAlert Severity="Severity.Info" Dense="true">
+                Nhập đúng khoảng nghỉ theo giờ nhà máy (@TimeZoneId). Chỉ khoảng Off được loại khỏi OEE Line;
+                thời gian máy hỏng/dừng khi phải sản xuất vẫn tính tổn thất. Có thể nhập nghỉ nửa ca hoặc qua đêm.
+            </MudAlert>
+            @if (_error is not null) { <MudAlert Severity="Severity.Error" Dense="true">@_error</MudAlert> }
+            @if (_loading) { <MudProgressLinear Indeterminate="true" /> }
+            <MudText Typo="Typo.subtitle2">@(_editingId.HasValue ? "Sửa khoảng Off" : "Thêm khoảng Off")</MudText>
+            <MudGrid Spacing="2">
+                <MudItem xs="12" sm="6"><MudDatePicker Label="Ngày bắt đầu" @bind-Date="_fromDate" DateFormat="dd/MM/yyyy" Required="true" Disabled="_busy" /></MudItem>
+                <MudItem xs="12" sm="6"><MudTimePicker Label="Giờ bắt đầu" @bind-Time="_fromTime" AmPm="false" Required="true" Disabled="_busy" /></MudItem>
+                <MudItem xs="12" sm="6"><MudDatePicker Label="Ngày kết thúc" @bind-Date="_untilDate" DateFormat="dd/MM/yyyy" Required="true" Disabled="_busy" /></MudItem>
+                <MudItem xs="12" sm="6"><MudTimePicker Label="Giờ kết thúc" @bind-Time="_untilTime" AmPm="false" Required="true" Disabled="_busy" /></MudItem>
+            </MudGrid>
+            <MudTextField T="string" Label="Ghi chú" @bind-Value="_note" MaxLength="500" Disabled="_busy" />
+            <MudStack Row="true" Justify="Justify.FlexEnd" Spacing="1">
+                @if (_editingId.HasValue) { <MudButton OnClick="Reset" Disabled="_busy">Hủy sửa</MudButton> }
+                <MudButton OnClick="SaveAsync" Disabled="_busy || _loading" Color="Color.Primary" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Save">Lưu khoảng Off</MudButton>
+            </MudStack>
+            <MudDivider />
+            <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                <MudText Typo="Typo.subtitle2">Lịch đã lưu (@Periods.Count)</MudText>
+                <MudButton OnClick="LoadAsync" Disabled="_busy" Size="Size.Small" StartIcon="@Icons.Material.Filled.Refresh">Tải lại</MudButton>
+            </MudStack>
+            <MudTable T="LineOffPeriod" Items="@Periods" Dense="true" Hover="true" Elevation="0" RowsPerPage="10" Breakpoint="Breakpoint.Sm">
+                <HeaderContent><MudTh>Bắt đầu</MudTh><MudTh>Kết thúc</MudTh><MudTh>Ghi chú</MudTh><MudTh>Cập nhật</MudTh><MudTh>Thao tác</MudTh></HeaderContent>
+                <RowTemplate Context="period">
+                    <MudTd DataLabel="Bắt đầu">@LocalText(period.Start)</MudTd>
+                    <MudTd DataLabel="Kết thúc">@LocalText(period.End)</MudTd>
+                    <MudTd DataLabel="Ghi chú">@period.Note</MudTd>
+                    <MudTd DataLabel="Cập nhật">@period.UpdatedBy<br />@LocalText(period.UpdatedAt)</MudTd>
+                    <MudTd DataLabel="Thao tác">
+                        <RowActionMenu Label="@($"Thao tác Off {LocalText(period.Start)}")" Disabled="_busy">
+                            <RowAction Label="Sửa" Icon="@Icons.Material.Filled.Edit" OnClick="() => Edit(period)" />
+                            <RowAction Label="Xóa" Color="Color.Error" Icon="@Icons.Material.Filled.Delete" OnClick="() => DeleteAsync(period)" />
+                        </RowActionMenu>
+                    </MudTd>
+                </RowTemplate>
+                <NoRecordsContent><MudText Typo="Typo.body2">Chưa có thời gian Off.</MudText></NoRecordsContent>
+                <PagerContent><MudTablePager /></PagerContent>
+            </MudTable>
+        </MudStack>
+    </DialogContent>
+    <DialogActions><MudButton OnClick="Close" Disabled="_busy">Đóng</MudButton></DialogActions>
+</MudDialog>

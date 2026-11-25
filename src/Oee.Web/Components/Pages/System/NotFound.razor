@@ -1,0 +1,13 @@
+@namespace Oee.Web.Components.Pages
+@page "/not-found"
+@layout MainLayout
+
+@* Fallback thân thiện cho route không tồn tại; không truy vấn dữ liệu hoặc thay đổi trạng thái hệ thống. *@
+<EmptyState Icon="@Icons.Material.Outlined.SearchOff"
+            Title="Không tìm thấy trang"
+            Message="Đường dẫn không tồn tại hoặc đã được di chuyển.">
+    <MudButton Href="/"
+               Color="Color.Primary">
+        Về bảng điều khiển
+    </MudButton>
+</EmptyState>

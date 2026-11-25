@@ -1,0 +1,8 @@
+@* Trạng thái dùng chung khi query trả 0 row; ChildContent cho phép page gắn CTA phù hợp quyền. *@
+<div class="empty-state" role="status">
+    <MudIcon Size="Size.Large"
+             Icon="@Icon" Color="Color.Secondary" />
+    <MudText Typo="Typo.h6">@Title</MudText>
+    <MudText Typo="Typo.body2" Color="Color.Secondary">@Message</MudText>
+    @ChildContent
+</div>

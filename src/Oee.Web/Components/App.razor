@@ -1,0 +1,27 @@
+﻿<!DOCTYPE html>
+<html lang="vi">
+
+@* Root document của Blazor Server: nạp MudBlazor/theme CSS, router interactive và script framework.
+   Component này không tải dữ liệu nghiệp vụ và không ghi SQL. *@
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <base href="/" />
+    <ResourcePreloader />
+    <link rel="stylesheet" href="_content/MudBlazor/MudBlazor.min.css" />
+    <link rel="stylesheet" href="@Assets["app.css"]" />
+    <link rel="stylesheet" href="@Assets["Oee.Web.styles.css"]" />
+    <link rel="stylesheet" href="@Assets["ui-polish.css"]" />
+    <ImportMap />
+    <link rel="icon" type="image/png" href="@Assets["branding/tan-tien-logo.png"]" />
+    <HeadOutlet @rendermode="PageRenderMode" />
+</head>
+
+<body>
+    <Routes @rendermode="PageRenderMode" />
+    <script src="_content/MudBlazor/MudBlazor.min.js"></script>
+    <script src="@Assets["login.js"]"></script>
+    <script src="@Assets["_framework/blazor.web.js"]"></script>
+</body>
+
+</html>

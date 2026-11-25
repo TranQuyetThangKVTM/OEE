@@ -1,0 +1,6 @@
+@namespace Oee.Web.Components.Pages.Reports
+@page "/reports/shift-kpi"
+@using Oee.Application.Contracts.Reporting
+@attribute [Authorize]
+@* Kỳ SHIFT được Application phân giải theo timezone Site; route này chỉ chọn loại báo cáo. *@
+<ReportWorkspace Kind="ReportKind.ShiftKpi" Title="KPI theo ca" Subtitle="So sánh OEE và sản lượng giữa các ca sản xuất, kể cả ca qua nửa đêm." />

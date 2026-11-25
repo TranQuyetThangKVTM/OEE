@@ -1,0 +1,104 @@
+@namespace Oee.Web.Components.Chat
+@using Oee.Application.Contracts.Modules
+@using Oee.Application.Production.Automation
+@inject Oee.Web.Chat.ChatRequestRunner Runner
+@inject ILogger<ProductionPlanScheduleDialog> Logger
+
+<MudDialog>
+    <TitleContent><MudText Typo="Typo.h6">Lịch kế hoạch và PDF theo ca</MudText></TitleContent>
+    <DialogContent>
+        <MudStack Spacing="3">
+            <MudAlert Severity="Severity.Info" Dense="true">
+                Mỗi ngày tạo kế hoạch D+1 từ các dòng thiết bị × ca × SKU trong mẫu.
+                Kế hoạch đã có được bỏ qua; khung giờ xung đột không bị ghi đè.
+            </MudAlert>
+            @if (_loading)
+            {
+                <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+            }
+            @if (_error is not null)
+            {
+                <MudAlert Severity="Severity.Error" Dense="true">@_error</MudAlert>
+            }
+            <MudAutocomplete T="SamplePlanListItem" Label="Kế hoạch mẫu" @bind-Value="_sample"
+                             SearchFunc="SearchSamplesAsync" ToStringFunc="SampleLabel" MaxItems="20"
+                             Clearable="true" ResetValueOnEmptyText="true" CoerceValue="false"
+                             Variant="Variant.Outlined" Disabled="_loading || _saving"
+                             HelperText="Tìm theo mã hoặc tên; lấy sản lượng và các ca từ mẫu đã chọn." />
+            @if (_sample is not null)
+            {
+                <MudText Typo="Typo.body2">@_sample.ItemCount dòng · @_sample.WorkUnitCount máy · @_sample.ShiftCount ca</MudText>
+            }
+            <MudTimePicker Label="Giờ tự tạo hằng ngày" @bind-Time="_time" AmPm="false"
+                           Variant="Variant.Outlined" Editable="true" Disabled="_loading || _saving" />
+            <MudSwitch T="bool" @bind-Value="_enabled" Color="Color.Success" Disabled="_loading || _saving"
+                       Label="Bật lịch tự động" />
+            <MudText Typo="Typo.caption">
+                Chạy theo múi giờ nhà máy của mẫu. Sau giờ đã chọn, bật lịch sẽ tạo ngày mai trong lần kiểm tra kế tiếp (khoảng 1 phút).
+                IIS cần duy trì ứng dụng hoạt động để chạy nền.
+            </MudText>
+            <MudDivider />
+            <MudSwitch T="bool" @bind-Value="_pdfEnabled" Color="Color.Info" Disabled="_loading || _saving"
+                       Label="Tự xuất PDF OEE sau mỗi ca" />
+            @if (_pdfEnabled)
+            {
+                <MudNumericField T="int" Label="Chờ sau khi hết ca (phút)" @bind-Value="_pdfDelay" Min="1" Max="120"
+                                 Variant="Variant.Outlined" Disabled="_loading || _saving" />
+                <MudText Typo="Typo.caption">
+                    Báo cáo toàn nhà máy của mẫu, theo các ca có trong mẫu. Ca đêm được tính theo ngày bắt đầu ca.
+                    Chỉ xuất các ca kết thúc từ lúc bật chức năng; lưu 90 PDF gần nhất.
+                </MudText>
+            }
+            @if (_schedule is not null)
+            {
+                <MudDivider />
+                <MudChip T="string" Color="@(_schedule.Enabled ? Color.Success : Color.Default)" Size="Size.Small">
+                    @(_schedule.Enabled ? "Đang bật" : "Đã tắt") · @_schedule.RunAt.ToString("HH:mm") · @_schedule.TimeZoneId
+                </MudChip>
+                <MudText Typo="Typo.caption">Cập nhật bởi @_schedule.UpdatedBy · @LocalTime(_schedule.UpdatedAt)</MudText>
+                @if (_schedule.LastError is not null)
+                {
+                    <MudAlert Severity="Severity.Error" Dense="true">@_schedule.LastError</MudAlert>
+                }
+                @if (_schedule.LastResult is { } result)
+                {
+                    <MudAlert Severity="@(result.Conflicts + result.Invalid > 0 ? Severity.Warning : Severity.Success)" Dense="true">
+                        Kế hoạch ngày @result.PlanDate.ToString("dd/MM/yyyy"): tạo @result.Created,
+                        bỏ qua trùng @result.Skipped, xung đột @result.Conflicts, không hợp lệ @result.Invalid.
+                    </MudAlert>
+                    <MudText Typo="Typo.caption">Hoàn tất @LocalTime(result.CompletedAt)</MudText>
+                }
+                else
+                {
+                    <MudText Typo="Typo.caption">Chưa có lần chạy thành công.</MudText>
+                }
+                @if (_schedule.PdfLastError is not null)
+                {
+                    <MudAlert Severity="Severity.Error" Dense="true">@_schedule.PdfLastError</MudAlert>
+                }
+                @if (_schedule.Reports is { Count: > 0 } pdfs)
+                {
+                    <MudText Typo="Typo.subtitle2">PDF đã xuất (@pdfs.Count)</MudText>
+                    <MudTable T="GeneratedShiftReport" Items="pdfs" Dense="true" Hover="true" Height="240px" FixedHeader="true">
+                        <HeaderContent>
+                            <MudTh>Ngày ca</MudTh><MudTh>Ca</MudTh><MudTh>Dữ liệu</MudTh><MudTh>Tải</MudTh>
+                        </HeaderContent>
+                        <RowTemplate Context="pdf">
+                            <MudTd>@pdf.OperationalDate.ToString("dd/MM/yyyy")</MudTd>
+                            <MudTd>@pdf.ShiftCode</MudTd>
+                            <MudTd>@(pdf.HasData ? "Có" : "Chưa có")</MudTd>
+                            <MudTd><MudIconButton Icon="@Icons.Material.Filled.PictureAsPdf" Color="Color.Error"
+                                Href="@($"/api/v1/reports/automatic/{pdf.Id}/pdf")" Target="_blank" Size="Size.Small"
+                                aria-label="@($"Tải PDF {pdf.ShiftCode} {pdf.OperationalDate:dd/MM/yyyy}")" /></MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                }
+            }
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Disabled="_saving">Đóng</MudButton>
+        <MudButton OnClick="SaveAsync" Color="Color.Primary" Variant="Variant.Filled"
+                   Disabled="_loading || _loadFailed || _saving" StartIcon="@Icons.Material.Filled.Save">Lưu lịch</MudButton>
+    </DialogActions>
+</MudDialog>

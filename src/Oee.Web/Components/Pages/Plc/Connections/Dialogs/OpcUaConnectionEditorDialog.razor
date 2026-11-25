@@ -1,0 +1,42 @@
+@namespace Oee.Web.Components.Pages.Plc
+@using Oee.Application.Contracts.Modules
+@using Oee.Application.Contracts.PlcIntegration
+@inject Oee.Application.Common.IUseCaseExecutor Plc
+@inject Microsoft.AspNetCore.Authorization.IAuthorizationService Authorization
+@inject Microsoft.AspNetCore.Components.Authorization.AuthenticationStateProvider Authentication
+
+<MudDialog>
+ <TitleContent><MudText Typo="Typo.h6">@Title</MudText></TitleContent>
+ <DialogContent>
+  <MudAlert Severity="Severity.Info" Dense="true" Class="mb-4">Credential chỉ được lưu dưới dạng secret reference. Giá trị đã lưu không được trả về UI hoặc ghi log.</MudAlert>
+  @if (!string.IsNullOrWhiteSpace(_error)) { <MudAlert Severity="Severity.Error" Variant="Variant.Outlined" Dense="true" Class="mb-3">@_error</MudAlert> }
+  <MudForm @ref="_mudForm" @bind-IsValid="_valid">
+   <MudStack Spacing="3" Class="py-2"><MudGrid Spacing="3">
+ <MudItem xs="12" sm="6"><MudTextField @bind-Value="_form.Code" Label="Mã kết nối" Required="true" MaxLength="32" /></MudItem>
+ <MudItem xs="12" sm="6"><MudTextField @bind-Value="_form.Name" Label="Tên kết nối" Required="true" MaxLength="200" /></MudItem>
+ <MudItem xs="12"><MudTextField @bind-Value="_form.Endpoint" Label="Endpoint opc.tcp://" Required="true" /></MudItem>
+ <MudItem xs="12" sm="6"><MudSelect T="string" @bind-Value="_form.SecurityMode" Label="Security mode">
+  <MudSelectItem Value="@("None")">None</MudSelectItem><MudSelectItem Value="@("Sign")">Sign</MudSelectItem><MudSelectItem Value="@("SignAndEncrypt")">SignAndEncrypt</MudSelectItem>
+ </MudSelect></MudItem>
+ <MudItem xs="12" sm="6"><MudTextField @bind-Value="_form.SecurityPolicy" Label="Security policy URI/tên" Required="true" /></MudItem>
+ <MudItem xs="12"><MudSelect T="string" @bind-Value="_form.AuthenticationType" Label="Authentication">
+  <MudSelectItem Value="@("Anonymous")">Anonymous</MudSelectItem><MudSelectItem Value="@("UserName")">UserName</MudSelectItem>
+ </MudSelect></MudItem>
+ @if (_form.AuthenticationType == "UserName")
+ {
+  <MudItem xs="12" sm="6"><MudTextField @bind-Value="_form.UserName" Label="Username" Required="true" /></MudItem>
+  <MudItem xs="12" sm="6"><MudTextField @bind-Value="_form.SecretReference" Label="Secret reference mới (write-only)" HelperText="Để trống để giữ giá trị hiện tại" InputType="InputType.Password" /></MudItem>
+  <MudItem xs="12"><MudCheckBox T="bool" @bind-Value="_form.ClearSecret" Label="Xóa secret reference hiện tại" /></MudItem>
+ }
+ <MudItem xs="12" sm="8"><MudTextField @bind-Value="_form.CertificateReference" Label="Certificate reference" /></MudItem>
+ <MudItem xs="12" sm="4"><MudCheckBox T="bool" @bind-Value="_form.Active" Label="Active" /></MudItem>
+</MudGrid></MudStack>
+  </MudForm>
+ </DialogContent>
+ <DialogActions>
+  <MudButton OnClick="Cancel" Disabled="_saving">Hủy</MudButton>
+  <AuthorizeAction Policy="@Capabilities.PlcManage">
+   <MudButton OnClick="SaveAsync" Disabled="_saving" Variant="Variant.Filled" Color="Color.Primary">Lưu</MudButton>
+  </AuthorizeAction>
+ </DialogActions>
+</MudDialog>

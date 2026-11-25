@@ -1,0 +1,131 @@
+@namespace Oee.Web.Components.Pages.Plc
+@page "/plc/tag-monitor"
+@attribute [Authorize]
+@using Oee.Application.PlcIntegration.Monitoring
+@inject OpcTagMonitorRequests Requests
+@inject IDialogService Dialogs
+
+<PageTitle>Giám sát tag OPC UA</PageTitle>
+<PageHeader Title="Giám sát tag OPC UA" Subtitle="Theo dõi tag đã ánh xạ. Màn hình làm mới mỗi 2 giây từ dữ liệu worker nền.">
+    <Actions>
+        @if (!ScreenMode)
+        {
+            <MudButton StartIcon="@Icons.Material.Filled.Fullscreen" OnClick="OpenScreenAsync">Xem màn hình</MudButton>
+        }
+        <MudButton StartIcon="@Icons.Material.Filled.Refresh" OnClick="ReloadMappingsAsync" Disabled="_loading">Tải lại ánh xạ</MudButton>
+        <MudButton StartIcon="@(_paused ? Icons.Material.Filled.PlayArrow : Icons.Material.Filled.Pause)" OnClick="TogglePauseAsync">
+            @(_paused ? "Tiếp tục màn hình" : "Tạm dừng màn hình")
+        </MudButton>
+    </Actions>
+    <Metrics>
+        <MetricCard Label="Tổng tag theo dõi" Value="@_rows.Count.ToString("N0")" Icon="@Icons.Material.Filled.Sensors" Color="Color.Info" />
+        <MetricCard Label="Tag theo bộ lọc" Value="@FilteredRows.Count.ToString("N0")" Icon="@Icons.Material.Filled.FilterAlt" Color="Color.Info" />
+    </Metrics>
+</PageHeader>
+
+<MudStack Spacing="2" Class="mt-3">
+    <MudAlert Severity="Severity.Info" Dense="true">
+        Tag không đổi giá trị có thể vẫn hoạt động bình thường. “Đọc trực tiếp” chỉ đọc từ OPC server,
+        không thay đổi bộ đếm hoặc dữ liệu sản xuất. Tag đầu ra không được subscription theo dõi.
+        Tạm dừng chỉ dừng màn hình; worker nền vẫn chạy. Thời gian bên dưới hiển thị UTC.
+    </MudAlert>
+    @if (_error is not null)
+    {
+        <MudAlert Severity="Severity.Error" Dense="true">@_error</MudAlert>
+    }
+    @if (_refreshError is not null)
+    {
+        <MudAlert Severity="Severity.Warning" Dense="true">@_refreshError</MudAlert>
+    }
+    <MudPaper Outlined="true" Elevation="0" Class="pa-3">
+        <MudGrid Spacing="2">
+            <MudItem xs="12" md="6">
+                <MudTextField T="string" Label="Tìm máy, loại tag, NodeId hoặc giá trị" @bind-Value="_search"
+                              Immediate="true" DebounceInterval="250" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudSelect T="Guid?" Label="Thiết bị" @bind-Value="_deviceId" Clearable="true" Placeholder="Tất cả thiết bị">
+                    @foreach (var device in _mappings.DistinctBy(mapping => mapping.DeviceId))
+                    {
+                        <MudSelectItem T="Guid?" Value="@((Guid?)device.DeviceId)">@device.DeviceCode · @device.DeviceName</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12">
+                <MudCheckBox T="bool" @bind-Value="_onlyProblems" Label="Chỉ hiện tag đầu vào lỗi / chưa nhận dữ liệu" Dense="true" />
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+    @if (_loading) { <MudProgressLinear Indeterminate="true" Color="Color.Primary" /> }
+    <MudStack Row="true" Wrap="Wrap.Wrap" AlignItems="AlignItems.Center" Spacing="2">
+        <MudText Typo="Typo.body2">@FilteredRows.Count / @_rows.Count tag · @(_paused ? "Đã tạm dừng màn hình" : "Đang theo dõi")</MudText>
+        <MudChip T="string" Size="Size.Small" Color="Color.Success">Giá trị vừa thay đổi</MudChip>
+        <MudChip T="string" Size="Size.Small" Color="Color.Warning">Lỗi / chưa có dữ liệu</MudChip>
+        <MudText Typo="Typo.caption">Cập nhật (UTC): @Utc(_snapshot?.At)</MudText>
+    </MudStack>
+    <MudPaper Class="oee-table-surface" Elevation="0">
+    <TableToolbar TableId="@_tableId" Title="Giám sát tag OPC UA">
+        <TableGroupingSelector Value="_grouping.Mode" ValueChanged="_grouping.SetMode" AllowProduct="false"
+                               ExpandAll="() => _table?.ExpandAllGroups()" CollapseAll="() => _table?.CollapseAllGroups()" />
+    </TableToolbar>
+    <MudTable T="OpcTagMonitorRow" id="@_tableId" @ref="_table" Items="FilteredRows" Dense="true" Hover="true" FixedHeader="true" Height="60vh"
+              GroupBy="_grouping.Definition" GroupHeaderClass="oee-table-group"
+              RowClassFunc="RowClass" Breakpoint="Breakpoint.Sm" Elevation="0" Class="opc-tag-table" aria-label="Giám sát tag OPC UA">
+        <ColGroup>
+            @if (_grouping.Mode != TableGroupingMode.None)
+            {
+                <col style="width:36px" />
+                @for (var index = 0; index < 9; index++) { <col /> }
+            }
+        </ColGroup>
+        <HeaderContent>
+            <MudTh>Thiết bị</MudTh><MudTh>Chiều / Loại tag</MudTh><MudTh>NodeId</MudTh><MudTh>Giá trị nhận / Kiểu</MudTh>
+            <MudTh>Trạng thái</MudTh><MudTh>Thời gian nguồn (UTC)</MudTh><MudTh>Nhận tại OEE (UTC)</MudTh>
+            <MudTh>Giá trị đổi lúc (UTC)</MudTh><MudTh>Đọc trực tiếp</MudTh>
+        </HeaderContent>
+        <GroupHeaderTemplate Context="group">
+            <MudTd colspan="9"><TableGroupHeading Key="@group.Key" Count="@group.Items.Count()" /></MudTd>
+        </GroupHeaderTemplate>
+        <RowTemplate Context="row">
+            <MudTd DataLabel="Thiết bị">
+                <MudText Typo="Typo.body2"><strong>@row.Mapping.DeviceCode</strong> · @row.Mapping.DeviceName</MudText>
+                <MudText Typo="Typo.caption">@row.Mapping.ConnectionCode</MudText>
+            </MudTd>
+            <MudTd DataLabel="Chiều / Loại tag">
+                <MudText Typo="Typo.body2">@(row.Input ? "Đầu vào" : "Đầu ra") · @row.RoleText</MudText>
+            </MudTd>
+            <MudTd DataLabel="NodeId"><MudText Typo="Typo.caption">@row.Mapping.NodeId</MudText></MudTd>
+            <MudTd DataLabel="Giá trị nhận / Kiểu">
+                <MudText Typo="Typo.body2"><strong>@(row.Observation?.Value ?? "—")</strong></MudText>
+                <MudText Typo="Typo.caption">@(row.Observation?.ActualType ?? row.Mapping.ConfiguredType)</MudText>
+                @if (row.Observation is not null)
+                {
+                    <MudText Typo="Typo.caption">@(row.Observation.FromReadRefresh ? "Đọc kiểm tra nền" : "Subscription")</MudText>
+                }
+            </MudTd>
+            <MudTd DataLabel="Trạng thái">
+                <MudChip T="string" Size="Size.Small" Color="@(row.Problem ? Color.Warning : row.Input ? Color.Success : Color.Info)">@row.Status</MudChip>
+                @if (row.Observation is not null) { <MudText Typo="Typo.caption">@row.Observation.StatusCode</MudText> }
+            </MudTd>
+            <MudTd DataLabel="Thời gian nguồn (UTC)">@Utc(row.Observation?.SourceAt)</MudTd>
+            <MudTd DataLabel="Nhận tại OEE (UTC)">@Utc(row.Observation?.ReceivedAt)</MudTd>
+            <MudTd DataLabel="Giá trị đổi lúc (UTC)">@Utc(row.Observation?.ChangedAt)</MudTd>
+            <MudTd DataLabel="Đọc trực tiếp">
+                <MudButton Size="Size.Small" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Sensors"
+                           Disabled="@(_readingId.HasValue || !row.Mapping.Enabled)" OnClick="() => ReadDirectAsync(row.Mapping)">
+                    @(_readingId == row.Mapping.Id ? "Đang đọc…" : "Đọc trực tiếp")
+                </MudButton>
+                @if (_direct.TryGetValue(row.Mapping.Id, out var read))
+                {
+                    <MudText Typo="Typo.body2" Color="@(read.IsGood ? Color.Success : Color.Error)">@read.Value · @read.ActualType</MudText>
+                    <MudText Typo="Typo.caption">@read.StatusCode</MudText>
+                    <MudText Typo="Typo.caption">Nguồn: @Utc(read.SourceAt)</MudText>
+                    <MudText Typo="Typo.caption">Đọc: @Utc(read.ReadAt)</MudText>
+                }
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent><MudText>Không có tag phù hợp. Kiểm tra ánh xạ thiết bị và bộ lọc.</MudText></NoRecordsContent>
+        <PagerContent><MudTablePager PageSizeOptions="[25, 50, 100]" RowsPerPageString="Số dòng" /></PagerContent>
+    </MudTable>
+    </MudPaper>
+</MudStack>

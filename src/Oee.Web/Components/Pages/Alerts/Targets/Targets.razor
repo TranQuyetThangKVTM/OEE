@@ -1,0 +1,96 @@
+@namespace Oee.Web.Components.Pages.Alerts
+@page "/alerts/targets"
+@using Oee.Application.Contracts.Modules
+@using Oee.Application.Contracts.Operations
+@attribute [Authorize]
+@inject Oee.Application.Common.IUseCaseExecutor Service
+@inject Oee.Application.Modules.IMasterDataQueryService MasterData
+@inject IDialogService DialogService
+
+@* Route: /alerts/targets. DashboardRead được xem; TargetsManage mới tạo version/kết thúc/xóa.
+   UI nhập tỷ lệ 0..100% nhưng command đổi về 0..1 trước khi gửi Application. Server kiểm tra overlap,
+   reference, authorization và RowVersion; bảng reload chỉ sau mutation thành công. *@
+<PageTitle>Ngưỡng mục tiêu SLO</PageTitle>
+
+<PageHeader OnRefresh="ReloadAsync" Title="Ngưỡng mục tiêu SLO"
+            Subtitle="Ngưỡng OEE / A / P / Q theo phạm vi và kỳ; quản lý theo phiên bản EffectiveFrom">
+    <Actions>
+        <MudCheckBox T="bool" @bind-Value="_effectiveOnly" Label="Chỉ đang hiệu lực"
+                     @bind-Value:after="ReloadAsync" />
+        <AuthorizeAction Policy="@Capabilities.TargetsManage">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
+                       OnClick="BeginAdd">
+                Thêm ngưỡng
+            </MudButton>
+        </AuthorizeAction>
+    </Actions>
+    <Metrics><MetricCard Label="Ngưỡng mục tiêu" Value="@_totalCount.ToString("N0")" Icon="@Icons.Material.Filled.Flag" Color="Color.Info" /></Metrics>
+</PageHeader>
+
+@if (!string.IsNullOrWhiteSpace(_error))
+{
+    <MudAlert Dense="true" Class="my-3"
+              Severity="Severity.Error" Variant="Variant.Outlined">@_error</MudAlert>
+}
+
+<PageFilter>
+    <MudTextField T="string" @bind-Value="_search" Label="Phạm vi, kỳ hoặc ghi chú"
+                  Immediate="true" DebounceInterval="500"
+                  @bind-Value:after="ApplyFiltersAsync" />
+</PageFilter>
+
+
+<PageTable TItem="TargetListItem"
+             @ref="_table"
+             ItemsProvider="LoadAsync"
+             AriaLabel="Danh sách ngưỡng mục tiêu SLO"
+             EmptyTitle="Không có ngưỡng mục tiêu phù hợp">
+    <HeaderContent>
+        <MudTh><MudTableSortLabel T="TargetListItem" SortLabel="scope">Phạm vi</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="TargetListItem" SortLabel="period">Kỳ</MudTableSortLabel></MudTh>
+        <MudTh>OEE</MudTh>
+        <MudTh>A</MudTh>
+        <MudTh>P</MudTh>
+        <MudTh>Q</MudTh>
+        <MudTh><MudTableSortLabel T="TargetListItem" SortLabel="from">Hiệu lực</MudTableSortLabel></MudTh>
+        <MudTh>Ghi chú</MudTh>
+        <MudTh>Trạng thái</MudTh>
+        <MudTh>Thao tác</MudTh>
+    </HeaderContent>
+    <RowTemplate Context="item">
+        <MudTd DataLabel="Phạm vi">
+            <StatusChip Text="@ScopeText(item.Scope)" Kind="SemanticKind.Info" />
+        </MudTd>
+        <MudTd DataLabel="Kỳ">@PeriodText(item.PeriodCode)</MudTd>
+        <MudTd DataLabel="OEE"><strong>@item.Oee.ToString("P1")</strong></MudTd>
+        <MudTd DataLabel="A">@item.Availability.ToString("P1")</MudTd>
+        <MudTd DataLabel="P">@item.Performance.ToString("P1")</MudTd>
+        <MudTd DataLabel="Q">@item.Quality.ToString("P1")</MudTd>
+        <MudTd DataLabel="Hiệu lực">
+            @item.From.ToString("dd/MM/yyyy") → @(item.To?.ToString("dd/MM/yyyy") ?? "…")
+        </MudTd>
+        <MudTd DataLabel="Ghi chú">@item.Note</MudTd>
+        <MudTd DataLabel="Trạng thái">
+            <StatusChip Text="@(item.IsEffective ? "Đang hiệu lực" : "Lịch sử/Tương lai")"
+                        Kind="@(item.IsEffective ? SemanticKind.Success : SemanticKind.Neutral)" />
+        </MudTd>
+        <MudTd DataLabel="Thao tác">
+            <AuthorizeAction Policy="@Capabilities.TargetsManage">
+                <RowActionMenu Label="Thao tác mục tiêu">
+                    <RowAction Label="Thêm phiên bản mục tiêu"
+                               Icon="@Icons.Material.Filled.AddCircleOutline"
+                               OnClick="@(() => BeginVersion(item))" />
+                    @if (item.IsEffective)
+                    {
+                        <RowAction Label="Kết thúc hiệu lực mục tiêu"
+                                   Icon="@Icons.Material.Filled.EventBusy" Color="Color.Warning"
+                                   OnClick="@(() => EndAsync(item))" />
+                    }
+                    <RowAction Label="Xóa mục tiêu"
+                               Icon="@Icons.Material.Filled.Delete" Color="Color.Error"
+                               OnClick="@(() => DeleteAsync(item))" />
+                </RowActionMenu>
+            </AuthorizeAction>
+        </MudTd>
+    </RowTemplate>
+</PageTable>

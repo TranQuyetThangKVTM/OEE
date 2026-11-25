@@ -1,0 +1,6 @@
+@namespace Oee.Web.Components.Pages.Reports
+@page "/reports/downtime-events"
+@using Oee.Application.Contracts.Reporting
+@attribute [Authorize]
+@* Route drill-down danh sách downtime; reason/search từ query string được chuyển vào bộ lọc dùng chung. *@
+<ReportWorkspace Kind="ReportKind.DowntimeEvents" Title="Sự kiện dừng máy" Subtitle="Theo dõi trạng thái thiết bị theo ca, thời gian dừng và lý do." InitialReasonId="ReasonId" InitialSearch="@Search" />

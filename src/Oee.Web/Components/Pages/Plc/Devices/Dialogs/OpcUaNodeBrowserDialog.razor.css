@@ -1,0 +1,12 @@
+.opc-browser-tree { height:440px; overflow:auto; border:1px solid var(--mud-palette-lines-default); border-radius:8px; padding:8px; margin-top:16px; }
+.opc-browser-node { display:flex; align-items:center; gap:16px; width:100%; min-width:0; }
+.opc-browser-name { flex:1; min-width:0; overflow-wrap:anywhere; }
+.opc-browser-id { font-family:Consolas,monospace; font-size:12px; color:var(--mud-palette-text-secondary); overflow-wrap:anywhere; text-align:right; }
+.opc-browser-selection { display:flex; align-items:center; gap:8px; padding-top:12px; font-size:13px; }
+.opc-browser-current { display:block; margin-top:4px; font-size:12px; color:var(--mud-palette-text-secondary); overflow-wrap:anywhere; }
+@media(max-width:700px) {
+    .opc-browser-node { flex-wrap:wrap; gap:2px; }
+    .opc-browser-name { flex-basis:100%; }
+    .opc-browser-id { text-align:left; font-size:11px; }
+    .opc-browser-tree { height:380px; }
+}

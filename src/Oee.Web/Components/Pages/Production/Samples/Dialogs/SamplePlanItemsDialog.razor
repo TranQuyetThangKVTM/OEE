@@ -1,0 +1,102 @@
+@namespace Oee.Web.Components.Pages.Production
+@using Oee.Application.Contracts.Modules
+@using Oee.Application.Contracts.Operations
+@inject Oee.Application.Modules.IProductionModuleQueryService Query
+@inject Oee.Application.Common.IUseCaseExecutor Commands
+@inject IAuthorizationService Authorization
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ISnackbar Snackbar
+
+@* Dialog thêm bulk item vào mẫu hiện hữu. Preview báo New/Duplicate; Save preview lại rồi gửi một command
+   transaction. Khóa duplicate được bảo vệ cả Application lẫn unique index, không chỉ ở component. *@
+<MudDialog Class="sample-plan-dialog">
+    <TitleContent><MudText Typo="Typo.h6">Thêm dòng vào mẫu</MudText></TitleContent>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_valid">
+            <MudAlert Dense="true" Class="mb-3"
+                      Severity="Severity.Info">
+                Thêm một dòng cho mỗi cặp Thiết bị × Ca. Tổ hợp Thiết bị × Ca × SKU đã tồn tại sẽ được bỏ qua.
+            </MudAlert>
+            @if (!string.IsNullOrWhiteSpace(_error))
+            {
+                <MudAlert Class="mb-3"
+                          Severity="Severity.Error">@_error</MudAlert>
+            }
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudSelect T="Guid" Label="Thiết bị / dây chuyền" @bind-SelectedValues="_workUnitIds"
+                               MultiSelection="true" Required="true">
+                        @foreach (var option in _lookups?.WorkUnits ?? [])
+                        {
+                            <MudSelectItem T="Guid" Value="@option.Id">@option.Code · @option.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudSelect T="Guid" Label="Ca làm việc" @bind-SelectedValues="_shiftIds"
+                               MultiSelection="true" Required="true">
+                        @foreach (var option in _lookups?.Shifts ?? [])
+                        {
+                            <MudSelectItem T="Guid" Value="@option.Id">@option.Code · @option.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudSelect T="Guid?" Label="Sản phẩm (SKU)" @bind-Value="_productId"
+                               Required="true">
+                        @foreach (var option in _lookups?.Products ?? [])
+                        {
+                            <MudSelectItem T="Guid?" Value="@((Guid?)option.Id)">@option.Code · @option.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudNumericField T="decimal" Label="Sản lượng kế hoạch mỗi dòng" @bind-Value="_quantity"
+                                     Min="0.0001m" Required="true" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField T="string" Label="Ghi chú" @bind-Value="_notes"
+                                  MaxLength="500" />
+                </MudItem>
+            </MudGrid>
+            <MudPaper Class="pa-3 mt-3 bulk-summary" Elevation="0">
+                <MudStack Row="true" Wrap="Wrap.Wrap" Spacing="1" Class="sample-summary-metrics">
+                    <MetricCard Label="Dòng tối đa" Value="@MaximumCount.ToString("N0")" Icon="@Icons.Material.Filled.ListAlt" Color="Color.Info" />
+                    <MetricCard Label="Dòng mới" Value="@((_preview?.NewCount ?? 0).ToString("N0"))" Icon="@Icons.Material.Filled.AddCircle" Color="Color.Success" />
+                    <MetricCard Label="Dòng trùng" Value="@((_preview?.DuplicateCount ?? 0).ToString("N0"))" Icon="@Icons.Material.Filled.ContentCopy" Color="Color.Warning" />
+                </MudStack>
+                @if (_preview?.DuplicateReasons.Count > 0)
+                {
+                    <MudList T="string"
+                             Dense="true" Class="mt-2">
+                        @foreach (var reason in _preview.DuplicateReasons)
+                        {
+                            <MudListItem T="string"
+                                         Icon="@Icons.Material.Filled.Info">@reason</MudListItem>
+                        }
+                    </MudList>
+                }
+            </MudPaper>
+            <MudButton Class="mt-3"
+                       Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Preview"
+                       Disabled="_previewing"
+                       OnClick="PreviewAsync">
+                Xem trước dòng mới
+            </MudButton>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Disabled="_saving"
+                   OnClick="Cancel">Hủy</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
+                   Disabled="@(_saving || !_valid || _preview is not { NewCount: > 0 })"
+                   OnClick="SaveAsync">
+            @if (_saving)
+            {
+                <MudProgressCircular Size="Size.Small" Class="mr-2"
+                                     Indeterminate="true" />
+            }
+            Thêm dòng
+        </MudButton>
+    </DialogActions>
+</MudDialog>

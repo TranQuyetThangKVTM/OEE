@@ -1,0 +1,152 @@
+@implements IDisposable
+@inject NavigationManager Navigation
+
+
+<MudNavMenu Class="oee-navigation py-3" Dense="true"
+            Color="Color.Secondary" Bordered="true" Rounded="true">
+    @**DashBoard*@
+    <MudNavLink Href="/"
+                Icon="@Icons.Material.Filled.Dashboard"
+                Match="NavLinkMatch.All">
+        Bảng điều khiển
+    </MudNavLink>
+    @*Live OEE*@
+    <MudNavLink Href="/live-oee"
+                Icon="@Icons.Material.Filled.MonitorHeart">
+        Live OEE
+    </MudNavLink>
+    @*Sản lượng*@
+    <MudNavGroup Title="Sản xuất"
+                    Icon="@Icons.Material.Filled.Factory" IconColor="Color.Secondary" HeaderClass="@GroupHeaderClass(AppNavigationGroup.Production)"
+                    Expanded="@_productionExpanded"
+                    ExpandedChanged="value => SetExpanded(AppNavigationGroup.Production, value)">
+
+        <MudNavLink Href="/production/plans"
+                    Icon="@Icons.Material.Filled.CalendarMonth">
+            Kế hoạch sản xuất
+        </MudNavLink>
+        <MudNavLink Href="/production/plan-templates"
+                    Icon="@Icons.Material.Filled.ContentCopy">
+            Kế hoạch sản xuất mẫu
+        </MudNavLink>
+        <MudNavLink Href="/downtime"
+                    Icon="@Icons.Material.Filled.TimerOff">
+            Phân loại dừng máy
+        </MudNavLink>
+    </MudNavGroup>
+    @*Dữ liệu nền*@
+    <MudNavGroup Title="Dữ liệu nền"
+                    Icon="@Icons.Material.Filled.Storage" IconColor="Color.Secondary" HeaderClass="@GroupHeaderClass(AppNavigationGroup.MasterData)"
+                    Expanded="@_masterDataExpanded"
+                    ExpandedChanged="value => SetExpanded(AppNavigationGroup.MasterData, value)">
+
+        <MudNavLink Href="/master/products"
+                    Icon="@Icons.Material.Filled.Inventory2">
+            Sản phẩm / SKU
+        </MudNavLink>
+        <MudNavLink Href="/master/work-unit-standards"
+                    Icon="@Icons.Material.Filled.Speed">
+            Định mức tốc độ
+        </MudNavLink>
+        <MudNavLink Href="/master/shifts"
+                    Icon="@Icons.Material.Filled.Schedule">
+            Ca làm việc
+        </MudNavLink>
+        <MudNavLink Href="/master/downtime-reasons"
+                    Icon="@Icons.Material.Filled.TimerOff">
+            Lý do dừng máy
+        </MudNavLink>
+    </MudNavGroup>
+    @*Báo cáo*@
+    <MudNavGroup Title="Báo cáo"
+                    Icon="@Icons.Material.Filled.Assessment" IconColor="Color.Secondary" HeaderClass="@GroupHeaderClass(AppNavigationGroup.Reports)"
+                    Expanded="@_reportsExpanded"
+                    ExpandedChanged="value => SetExpanded(AppNavigationGroup.Reports, value)">
+
+        <MudNavLink Href="/reports/shift-kpi"
+                    Icon="@Icons.Material.Filled.Schedule">
+            KPI theo ca
+        </MudNavLink>
+        <MudNavLink Href="/reports/daily-oee"
+                    Icon="@Icons.Material.Filled.Today">
+            KPI ngày
+        </MudNavLink>
+        <MudNavLink Href="/reports/weekly-kpi"
+                    Icon="@Icons.Material.Filled.DateRange">
+            KPI tuần
+        </MudNavLink>
+        <MudNavLink Href="/reports/monthly-kpi"
+                    Icon="@Icons.Material.Filled.CalendarMonth">
+            KPI tháng
+        </MudNavLink>
+        <MudNavLink Href="/reports/downtime-events"
+                    Icon="@Icons.Material.Filled.ListAlt">
+            Sự kiện downtime
+        </MudNavLink>
+        <MudNavLink Href="/reports/reliability"
+                    Icon="@Icons.Material.Filled.BuildCircle">
+            ĐỘ TIN CẬY
+        </MudNavLink>
+    </MudNavGroup>
+    @*Ngưỡng*@
+    <MudNavGroup Title="Cảnh báo SLO"
+                    Icon="@Icons.Material.Filled.NotificationImportant" IconColor="Color.Secondary" HeaderClass="@GroupHeaderClass(AppNavigationGroup.Alerts)"
+                    Expanded="@_alertsExpanded"
+                    ExpandedChanged="value => SetExpanded(AppNavigationGroup.Alerts, value)">
+        <MudNavLink Href="/alerts"
+                    Icon="@Icons.Material.Filled.NotificationsActive"
+                    Match="NavLinkMatch.All">
+            Danh sách cảnh báo
+        </MudNavLink>
+        <MudNavLink Href="/alerts/targets"
+                    Icon="@Icons.Material.Filled.TrackChanges">
+            Ngưỡng mục tiêu
+        </MudNavLink>
+    </MudNavGroup>
+    @*PLC*@
+    <MudNavGroup Title="Tích hợp PLC"
+                    Icon="@Icons.Material.Filled.Sensors" IconColor="Color.Secondary" HeaderClass="@GroupHeaderClass(AppNavigationGroup.Plc)"
+                    Expanded="@_plcExpanded"
+                    ExpandedChanged="value => SetExpanded(AppNavigationGroup.Plc, value)">
+        <MudNavLink Href="/plc/connections"
+                    Icon="@Icons.Material.Filled.Hub">
+            Kết nối OPC UA
+        </MudNavLink>
+        <MudNavLink Href="/plc/mappings"
+                    Icon="@Icons.Material.Filled.Cable">
+            Ánh xạ thiết bị
+        </MudNavLink>
+        <MudNavLink Href="/plc/tag-monitor"
+                    Icon="@Icons.Material.Filled.MonitorHeart">
+            Giám sát tag OPC UA
+        </MudNavLink>
+        <MudNavLink Href="/plc/faults"
+                    Icon="@Icons.Material.Filled.WarningAmber">
+            Ánh xạ mã lỗi
+        </MudNavLink>
+    </MudNavGroup>
+     @*Architecture*@
+    <MudNavGroup Title="Cơ cấu tổ chức"
+                    Icon="@Icons.Material.Filled.AccountTree" IconColor="Color.Secondary" HeaderClass="@GroupHeaderClass(AppNavigationGroup.Organization)"
+                    Expanded="@_organizationExpanded"
+                    ExpandedChanged="value => SetExpanded(AppNavigationGroup.Organization, value)">
+        <MudNavLink Href="/equipment/hierarchy"
+                    Icon="@Icons.Material.Filled.AccountTree">
+            Cây cơ cấu tổ chức
+        </MudNavLink>
+    </MudNavGroup>
+    @*Hệ thống*@
+    <MudNavGroup Title="Hệ thống"
+                    Icon="@Icons.Material.Filled.AdminPanelSettings" IconColor="Color.Secondary" HeaderClass="@GroupHeaderClass(AppNavigationGroup.System)"
+                    Expanded="@_systemExpanded"
+                    ExpandedChanged="value => SetExpanded(AppNavigationGroup.System, value)">
+        <MudNavLink Href="/users"
+                    Icon="@Icons.Material.Filled.ManageAccounts">
+            Quản lý người dùng
+        </MudNavLink>
+        <MudNavLink Href="/audit"
+                    Icon="@Icons.Material.Filled.FactCheck">
+            Nhật ký thao tác
+        </MudNavLink>
+    </MudNavGroup>
+</MudNavMenu>

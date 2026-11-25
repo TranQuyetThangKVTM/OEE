@@ -1,0 +1,6 @@
+@namespace Oee.Web.Components.Pages.Reports
+@page "/reports/monthly-kpi"
+@using Oee.Application.Contracts.Reporting
+@attribute [Authorize]
+@* Route cấu hình báo cáo KPI tháng trên cùng Application Report Query. *@
+<ReportWorkspace Kind="ReportKind.MonthlyKpi" Title="KPI theo tháng" Subtitle="Theo dõi OEE và sản lượng theo tháng, so sánh xu hướng dài hạn." />

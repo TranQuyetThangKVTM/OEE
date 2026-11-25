@@ -1,0 +1,125 @@
+@namespace Oee.Web.Components.Pages.Alerts
+@page "/alerts"
+@page "/alerts/list"
+@using Oee.Application.Contracts.Modules
+@attribute [Authorize]
+@inject Oee.Application.Common.IUseCaseExecutor Service
+@inject IDialogService DialogService
+
+@* Routes: /alerts và /alerts/list. DashboardRead được xem danh sách; AlertsManage mới thấy mutation,
+   SnapshotsManage mới re-evaluate. PageTable chuyển filter/sort/page vào IAlertModuleService và SQL.
+   Command dùng ConcurrencyToken, có confirm/error/reload; audit/authorization thật nằm phía service/backend. *@
+<PageTitle>Cảnh báo SLO</PageTitle>
+
+<PageHeader OnRefresh="ReloadAsync" Title="Cảnh báo SLO"
+            Subtitle="Cảnh báo khi OEE / Sẵn sàng / Hiệu suất / Chất lượng dưới ngưỡng mục tiêu">
+    <Actions>
+        <AuthorizeAction Policy="@Capabilities.SnapshotsManage">
+            <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PlayCircle"
+                       OnClick="ReevaluateVisibleAsync">
+                Đánh giá lại
+            </MudButton>
+        </AuthorizeAction>
+    </Actions>
+    <Metrics><MetricCard Label="Cảnh báo theo bộ lọc" Value="@_totalCount.ToString("N0")" Icon="@Icons.Material.Filled.Notifications" Color="Color.Info" /></Metrics>
+</PageHeader>
+
+@if (!string.IsNullOrWhiteSpace(_error))
+{
+    <MudAlert Dense="true" Class="my-3"
+              Severity="Severity.Error" Variant="Variant.Outlined">@_error</MudAlert>
+}
+
+<PageFilter>
+    <MudTextField T="string" @bind-Value="_search" Label="Thiết bị"
+                  Immediate="true" DebounceInterval="500"
+                  @bind-Value:after="ApplyFiltersAsync" />
+    <MudSelect T="string" @bind-Value="_stateFilter" Label="Trạng thái"
+               Clearable="true"
+               @bind-Value:after="ApplyFiltersAsync">
+        <MudSelectItem Value="@("Open")">Đang mở</MudSelectItem>
+        <MudSelectItem Value="@("Acknowledged")">Đã tiếp nhận</MudSelectItem>
+        <MudSelectItem Value="@("Resolved")">Đã giải quyết</MudSelectItem>
+    </MudSelect>
+    <MudSelect T="string" @bind-Value="_severityFilter" Label="Mức độ"
+               Clearable="true"
+               @bind-Value:after="ApplyFiltersAsync">
+        <MudSelectItem Value="@("Critical")">Nghiêm trọng</MudSelectItem>
+        <MudSelectItem Value="@("Warning")">Cảnh báo</MudSelectItem>
+    </MudSelect>
+    <PageDateRangeFilter @bind-FromDate="_fromDate" @bind-ToDate="_toDate"
+                         RangeChanged="ApplyFiltersAsync" />
+</PageFilter>
+
+
+<PageTable TItem="AlertListItem"
+             @ref="_table"
+             ItemsProvider="LoadAsync"
+             AriaLabel="Danh sách cảnh báo SLO"
+             EmptyTitle="Không có cảnh báo phù hợp">
+    <HeaderContent>
+        <MudTh><MudTableSortLabel T="AlertListItem" SortLabel="state">Trạng thái</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="AlertListItem" SortLabel="severity">Mức độ</MudTableSortLabel></MudTh>
+        <MudTh>Ngày / Kỳ</MudTh>
+        <MudTh><MudTableSortLabel T="AlertListItem" SortLabel="workunit">Thiết bị</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="AlertListItem" SortLabel="metric">Chỉ số</MudTableSortLabel></MudTh>
+        <MudTh>Thực tế</MudTh>
+        <MudTh>Mục tiêu</MudTh>
+        <MudTh>Chênh lệch</MudTh>
+        <MudTh><MudTableSortLabel T="AlertListItem" SortLabel="triggeredat">Thời điểm</MudTableSortLabel></MudTh>
+        <MudTh>Người tiếp nhận</MudTh>
+        <MudTh>Thao tác</MudTh>
+    </HeaderContent>
+    <RowTemplate Context="item">
+        <MudTd DataLabel="Trạng thái">
+            <StatusChip Text="@StateText(item.State)" Kind="@StateKind(item.State)" />
+        </MudTd>
+        <MudTd DataLabel="Mức độ">
+            <StatusChip Text="@SeverityText(item.Severity)" Kind="@SeverityKind(item.Severity)" />
+        </MudTd>
+        <MudTd DataLabel="Ngày / Kỳ">
+            @item.TriggeredAt.ToLocalTime().ToString("dd/MM/yyyy")
+            <small class="table-subline">@item.Period</small>
+        </MudTd>
+        <MudTd DataLabel="Thiết bị">
+            <strong>@item.WorkUnit</strong>
+            <small class="table-subline">@item.WorkUnitName</small>
+        </MudTd>
+        <MudTd DataLabel="Chỉ số">@MetricText(item.Metric)</MudTd>
+        <MudTd DataLabel="Thực tế"><strong>@item.Actual.ToString("P1")</strong></MudTd>
+        <MudTd DataLabel="Mục tiêu">@item.Target.ToString("P1")</MudTd>
+        <MudTd DataLabel="Chênh lệch"
+               Class="alert-gap">@item.Difference.ToString("P1")</MudTd>
+        <MudTd DataLabel="Thời điểm">@item.TriggeredAt.ToLocalTime().ToString("dd/MM HH:mm")</MudTd>
+        <MudTd DataLabel="Người tiếp nhận">@(item.AcknowledgedBy ?? "—")</MudTd>
+        <MudTd DataLabel="Thao tác">
+            <RowActionMenu Label="@($"Thao tác cảnh báo {item.WorkUnit}")">
+                <RowAction Label="Xem cảnh báo"
+                           Icon="@Icons.Material.Filled.Visibility"
+                           OnClick="@(() => ViewAsync(item))" />
+                <AuthorizeAction Policy="@Capabilities.AlertsManage">
+                    @if (item.State == "Open")
+                    {
+                        <RowAction Label="Tiếp nhận cảnh báo"
+                                   Icon="@Icons.Material.Filled.Done" Color="Color.Success"
+                                   OnClick="@(() => AcknowledgeAsync(item))" />
+                    }
+                    @if (item.State != "Resolved")
+                    {
+                        <RowAction Label="Giải quyết cảnh báo"
+                                   Icon="@Icons.Material.Filled.TaskAlt" Color="Color.Primary"
+                                   OnClick="@(() => ResolveAsync(item))" />
+                    }
+                </AuthorizeAction>
+                <AuthorizeAction Policy="@Capabilities.SnapshotsManage">
+                    @if (item.State != "Resolved")
+                    {
+                        <RowAction Label="Đánh giá lại cảnh báo"
+                                   Icon="@Icons.Material.Filled.Refresh"
+                                   OnClick="@(() => ReevaluateAsync(item))" />
+                    }
+                </AuthorizeAction>
+            </RowActionMenu>
+        </MudTd>
+    </RowTemplate>
+</PageTable>

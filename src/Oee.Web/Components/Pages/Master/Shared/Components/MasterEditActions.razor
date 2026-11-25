@@ -1,0 +1,11 @@
+@namespace Oee.Web.Components.Pages.Master
+@inject IDialogService DialogService
+
+@* Menu dùng lại ở bảng master: Edit và Activate/Deactivate. Component chỉ mở dialog bằng Id;
+   dialog tải lại DTO/RowVersion mới nhất, command backend kiểm tra quyền/concurrency và bảng cha reload sau Ok. *@
+<RowActionMenu Label="@ActionLabel">
+    <RowAction Label="@EditLabel" Icon="@Icons.Material.Filled.Edit" OnClick="OpenEditAsync" />
+    <RowAction Label="@StatusTooltip" Icon="@Icons.Material.Filled.ToggleOn"
+               Color="@(Status == "Active" ? Color.Default : Color.Success)" OnClick="OpenStatusAsync" />
+    @ChildContent
+</RowActionMenu>

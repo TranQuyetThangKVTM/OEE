@@ -1,0 +1,638 @@
+/* Token giao diện dùng chung. Razor/MudBlazor tham chiếu biến này để màu, khoảng cách và trạng thái
+   nhất quán; không nên rải literal màu mới nếu đã có semantic token tương ứng. */
+:root {
+  --oee-navy-900: #061426;
+  --oee-navy-800: #0b2544;
+  --oee-blue-600: #075ec8;
+  --oee-blue-700: #064ba0;
+  --oee-cyan-400: #00d4ee;
+  --oee-brand-soft: #eaf5ff;
+  --oee-brand-border: #bcdcf3;
+  --oee-planned-stop: #f59e0b;
+  --oee-success: #0b9f75;
+  --oee-warning: #f4b400;
+  --oee-error: #e42d32;
+  --oee-info: #2477e8;
+  --oee-canvas: #f3f7fc;
+  --oee-surface: #fff;
+  --oee-text: #14243b;
+  --oee-muted: #475569;
+  --oee-border: #dce6f0;
+  --oee-radius: 8px;
+  --oee-space-1: 0.25rem;
+  --oee-space-2: 0.5rem;
+  --oee-space-3: 0.75rem;
+  --oee-space-4: 1rem;
+  --oee-space-6: 1.5rem;
+  --oee-elevation: 0 2px 8px rgb(6 20 38 / 10%);
+}
+
+/* Form đổi mật khẩu dùng native POST để Identity có thể cập nhật cookie trong HTTP response. */
+.identity-password-card {
+    max-width: 640px;
+}
+
+.identity-password-form {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.identity-password-form label {
+    color: var(--mud-palette-text-primary);
+    font-weight: 600;
+}
+
+.identity-password-form input {
+    width: 100%;
+    min-height: 3rem;
+    padding: 0.75rem 1rem;
+    color: var(--mud-palette-text-primary);
+    background: var(--mud-palette-surface);
+    border: 1px solid var(--mud-palette-lines-inputs);
+    border-radius: var(--mud-default-borderradius);
+}
+
+.identity-password-form input:focus-visible {
+    border-color: var(--mud-palette-primary);
+    outline: 2px solid color-mix(in srgb, var(--mud-palette-primary) 25%, transparent);
+}
+/* Nền và typography mặc định của toàn ứng dụng. */
+html,
+body {
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+  background: var(--oee-canvas);
+  color: var(--oee-text);
+}
+/* App shell: AppBar, drawer, vùng nội dung, banner OPC và chỉ báo ca. */
+.oee-appbar {
+  min-height: 64px;
+}
+.app-brand-logo {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  margin-inline: var(--oee-space-2);
+}
+.app-logo {
+  display: block;
+  width: 44px;
+  height: 44px;
+  padding: 4px;
+  border-radius: 8px;
+  background: #fff;
+  object-fit: contain;
+}
+.app-identity {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.1;
+}
+.app-identity .mud-typography {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.app-identity .mud-typography-caption {
+  opacity: 0.72;
+}
+.oee-drawer {
+  border-right: 1px solid rgb(255 255 255 / 8%);
+}
+.nav-group {
+  display: block;
+  padding: 1rem 1rem 0.35rem;
+  color: rgb(255 255 255 / 55%);
+  letter-spacing: 0.08em;
+}
+.main-container {
+  padding: 1.25rem;
+}
+.shift-indicator {
+  display: grid;
+  grid-template-columns: auto auto auto;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 210px;
+  padding: 0.35rem 0.8rem;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 5%);
+}
+.shift-indicator .mud-progress-linear {
+  grid-column: 2/4;
+}
+.online-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--oee-success);
+}
+.shift-name {
+  font-size: 0.75rem;
+  opacity: 0.8;
+}
+/* Popover tài khoản giới hạn chiều rộng và tự co trên tablet/mobile. */
+.user-popover {
+  width: 310px;
+  padding: 1rem;
+}
+.user-popover__hero {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: -1rem -1rem 1rem;
+  padding: 1rem;
+  background: var(--oee-blue-700);
+  color: var(--oee-surface);
+}
+.role-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+/* Các primitive tái sử dụng: header, metric, filter, empty/loading state. */
+.metric-card__value {
+  font-variant-numeric: tabular-nums;
+}
+.empty-state {
+  display: flex;
+  min-height: 220px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 0.5rem;
+  padding: 2rem;
+}
+.loading-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  background: rgb(255 255 255 / 75%);
+  backdrop-filter: blur(1px);
+}
+.status-chip {
+  font-weight: 600;
+}
+/* Nội dung chỉ dành cho screen reader vẫn tồn tại trong accessibility tree. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.flex-wrap {
+  flex-wrap: wrap;
+}
+code {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+/* Blazor bật vùng này khi circuit gặp lỗi; z-index giữ thông báo trên nội dung. */
+#blazor-error-ui {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  z-index: 2000;
+  padding: 0.75rem 1rem;
+  background: var(--oee-warning);
+  color: var(--oee-text);
+}
+#blazor-error-ui .dismiss {
+  float: right;
+  border: 0;
+  background: transparent;
+  font-size: 1.25rem;
+}
+/* Tablet: rút gọn AppBar và chuyển tiêu đề/action thành cột để tránh tràn ngang. */
+@media (max-width: 959px) {
+  .app-identity {
+    display: none;
+  }
+  .appbar-shift {
+    display: none;
+  }
+  .main-container {
+    padding: 0.75rem;
+  }
+  .user-popover {
+    width: min(310px, 85vw);
+  }
+}
+/* Tôn trọng thiết lập giảm chuyển động của hệ điều hành vì accessibility. */
+@media (max-width: 599px) {
+  .app-logo { width: 38px; height: 38px; object-fit: contain; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+/* Production: phần mô tả phụ, summary và chi tiết. */
+.table-subline {
+  display: block;
+  margin-top: 0.2rem;
+  color: var(--oee-muted);
+  font-size: 0.7rem;
+}
+
+.production-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+  margin-block: 1rem;
+}
+.bulk-bar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: minmax(9rem, 0.3fr) 1fr;
+  gap: 0.65rem 1rem;
+  margin: 0;
+}
+.detail-grid dt {
+  color: var(--oee-muted);
+  font-weight: 700;
+}
+.detail-grid dd {
+  margin: 0;
+}
+.mt-3 {
+  margin-top: 1rem;
+}
+.mb-3 {
+  margin-bottom: 1rem;
+}
+/* Production giảm số cột ở tablet ngang. */
+@media (max-width: 1199px) {
+
+  .production-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+}
+/* Production trên tablet dọc/điện thoại chuyển về một cột. */
+@media (max-width: 767px) {
+
+  .production-summary-grid{
+    grid-template-columns: 1fr;
+  }
+
+  .bulk-bar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+  .detail-grid dd {
+    margin-bottom: 0.5rem;
+  }
+}
+
+.master-route-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+@media (max-width: 959px) {
+
+  .master-route-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 599px) {
+
+  .master-route-grid {
+    grid-template-columns: 1fr;
+  }
+
+}
+/* Dashboard: container tương đối cho loading overlay. */
+.position-relative {
+  position: relative;
+  min-height: 120px;
+}
+/* Kiểu login dùng chung/cũ còn phục vụ selector không nằm trong scoped Login.razor.css. */
+.login-card {
+  width: min(100%, 430px);
+  padding: 32px;
+  border-radius: 16px;
+}
+.login-form {
+  display: grid;
+  gap: 8px;
+  margin-top: 24px;
+}
+.login-form label {
+  color: var(--oee-blue-600);
+  font-weight: 600;
+  margin-top: 8px;
+}
+.login-form input {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid #9bada6;
+  border-radius: 8px;
+  font: inherit;
+  background: #fff;
+}
+.login-form input:focus-visible {
+  outline: 3px solid rgb(0 212 238 / 30%);
+  border-color: var(--oee-cyan-400);
+}
+/* Report workspace: metric tự co, chart/Pareto hai cột và control ngày. */
+.report-metric-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+  margin: 1rem 0;
+}
+.report-chart-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.75fr);
+  gap: 1rem;
+  margin: 1rem 0;
+}
+.report-date-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.75rem;
+  color: var(--mud-palette-text-secondary);
+}
+.report-date-field input {
+  min-height: 40px;
+  border: 1px solid var(--mud-palette-lines-default);
+  border-radius: var(--mud-default-borderradius);
+  padding: 0.4rem 0.6rem;
+  background: var(--mud-palette-surface);
+  color: var(--mud-palette-text-primary);
+}
+.report-pareto {
+  list-style: none;
+  padding: 0;
+  margin: 0.75rem 0 0;
+  display: grid;
+  gap: 0.65rem;
+}
+.report-pareto li a,
+.report-pareto li > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  color: inherit;
+  text-decoration: none;
+  margin-bottom: 0.25rem;
+}
+.report-pareto li span {
+  font-size: 0.78rem;
+  color: var(--mud-palette-text-secondary);
+  white-space: nowrap;
+}
+/* Báo cáo trên tablet chuyển chart thành một cột và metric thành hai cột. */
+.plan-edit-dialog.mud-dialog {
+    width: min(760px, calc(100vw - 32px));
+    border-radius: 16px;
+}
+.plan-edit-dialog .mud-dialog-title { border-bottom: 1px solid var(--mud-palette-divider); padding: 20px 24px; }
+.plan-edit-dialog .mud-dialog-content { padding: 20px 24px; }
+.plan-edit-dialog .mud-dialog-actions { border-top: 1px solid var(--mud-palette-divider); background: var(--mud-palette-background-gray); padding: 14px 24px; gap: 10px; }
+.confirmation-dialog.mud-dialog { border-radius: 16px; }
+.confirmation-dialog .mud-dialog-title { border-bottom: 1px solid var(--mud-palette-divider); }
+.confirmation-dialog .mud-dialog-content { padding: 24px; }
+.confirmation-dialog .mud-dialog-actions { border-top: 1px solid var(--mud-palette-divider); background: var(--mud-palette-background-gray); padding: 14px 24px; gap: 10px; }
+.confirmation-dialog .mud-dialog-actions .mud-button-root { min-width: 96px; }
+.sample-detail-summary { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; border: 1px solid var(--mud-palette-divider); }
+.sample-summary-metrics { flex-wrap: wrap; }
+.sample-item-code { font-weight: 700; }
+.sample-detail-lines { border: 1px solid var(--mud-palette-divider); overflow: hidden; }
+.sample-detail-lines .mud-table-cell { padding: 8px 14px; vertical-align: middle; }
+.sample-detail-lines .mud-table-cell .mud-typography-caption { display: block; line-height: 1.45; }
+
+@media (max-width: 960px) {
+  .report-chart-grid {
+    grid-template-columns: 1fr;
+  }
+  .report-metric-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+/* Điện thoại xếp metric/Pareto theo chiều dọc để tránh text bị bó hẹp. */
+@media (max-width: 600px) {
+  .report-metric-grid {
+    grid-template-columns: 1fr;
+  }
+  .report-pareto li a,
+  .report-pareto li > div {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.1rem;
+  }
+}
+.opc-wide {
+  grid-column: 1/-1;
+}
+/* Compact OPC UA editor: read/write cards, one NodeId row and a fixed dialog footer. */
+.opc-config-dialog { width:calc(100% - 40px); max-width:1060px !important; max-height:92vh; border-radius:14px; }
+.opc-config-dialog .mud-dialog-title { padding:16px 22px; background:var(--mud-palette-surface); border-bottom:1px solid var(--mud-palette-lines-default); flex-shrink:0; }
+.opc-dialog-title { display:flex; align-items:center; gap:12px; min-width:0; }
+.opc-dialog-title .mud-typography-h6 { font-size:18px; font-weight:700; line-height:1.4; }
+.opc-dialog-title .mud-typography-caption { color:var(--mud-palette-text-secondary); font-size:12px; }
+.opc-config-dialog .mud-dialog-content { padding:18px 22px; overflow-y:auto; min-height:0; }
+.opc-identity-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px 16px; margin-bottom:12px; }
+.opc-config-dialog .mud-input-outlined.mud-input-margin-dense { margin-top:8px; }
+.opc-config-dialog .mud-input-outlined input.mud-input-slot,
+.opc-config-dialog .mud-select .mud-input-slot { font-size:13px; padding-top:10px; padding-bottom:10px; }
+.opc-config-dialog .mud-input-label { font-size:13px; }
+.opc-config-dialog .mud-input-helper-text { margin-top:4px; font-size:11.5px; line-height:1.5; color:var(--mud-palette-text-secondary); }
+.opc-endpoint-strip { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:7px 10px; margin:2px 0 16px; border:1px solid #e2e9ef; border-radius:8px; background:#f7f9fc; }
+.opc-endpoint-text { display:flex; align-items:center; flex-wrap:wrap; gap:7px; min-width:0; font-size:12px; }
+.opc-endpoint-text > span { overflow-wrap:anywhere; font-weight:600; color:#325574; }
+.opc-endpoint-text > small { color:var(--mud-palette-text-secondary); font-size:11px; }
+.opc-direction-card { border:1px solid #dde6ef; border-left:4px solid; border-radius:10px; margin-bottom:16px; overflow:hidden; }
+.opc-direction-read { border-left-color:#2c67f5; }
+.opc-direction-write { border-left-color:#07976e; }
+.opc-direction-header { display:flex; align-items:center; gap:12px; padding:12px 16px; border-bottom:1px solid #e2e9f1; background:#f5f8fc; }
+.opc-direction-header > .mud-icon-root { font-size:24px; flex-shrink:0; }
+.opc-direction-read .opc-direction-header > .mud-icon-root { color:#2c67f5; }
+.opc-direction-write .opc-direction-header > .mud-icon-root { color:#07976e; }
+.opc-direction-header > div { flex:1; min-width:0; }
+.opc-direction-header h3 { margin:0; font-size:12px; letter-spacing:.075em; text-transform:uppercase; font-weight:750; color:#25394e; }
+.opc-direction-header p { margin:4px 0 0; color:#728296; font-size:12px; line-height:1.5; }
+.opc-direction-header .mud-chip { flex-shrink:0; height:24px; margin:0; font-size:11px; }
+.opc-direction-body { padding:4px 16px 10px; }
+.opc-tag-group { padding:12px 0 8px; }
+.opc-tag-group + .opc-tag-group { border-top:1px solid #e2e9ef; }
+.opc-tag-group h4 { margin:0 0 3px; text-transform:uppercase; letter-spacing:.045em; font-size:11px; color:#66778b; font-weight:750; }
+.opc-tag-row { display:grid; grid-template-columns:minmax(0,1fr) 130px 28px; gap:10px; align-items:start; padding:2px 0 5px; }
+.opc-node-picker { min-width:0; cursor:pointer; }
+.opc-node-picker input[readonly] { cursor:pointer; font-family:Consolas,'Cascadia Mono',monospace; font-weight:600; font-size:13px !important; }
+.opc-node-picker .mud-input-label { max-width:calc(100% - 44px); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.opc-tag-clear { margin-top:15px; opacity:.65; }
+.opc-tag-type .mud-input-helper-text { display:none; }
+.opc-inline-setting { max-width:calc(100% - 168px); margin:0 0 6px; }
+.opc-config-dialog .mud-checkbox { font-size:12px; }
+.opc-config-dialog .mud-checkbox .mud-typography-body1 { font-size:12px; }
+.opc-advanced { border:1px solid #e2e9ef; border-radius:8px; margin-top:4px; }
+.opc-advanced .mud-expand-panel-header { min-height:44px; font-size:12px; padding:10px 14px; color:#53687b; }
+.opc-advanced-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px 16px; }
+.opc-read-summary { display:flex; align-items:center; gap:8px; padding:10px 12px; margin-top:12px; background:#f3f6fa; border:1px solid #e1e8ef; border-radius:8px; color:#738297; font-size:12px; }
+.opc-read-summary strong { color:#334155; font-weight:600; }
+.opc-config-dialog .mud-dialog-actions { padding:12px 22px; border-top:1px solid #e2e9ef; background:#fafbfc; flex-shrink:0; }
+.opc-dialog-actions { width:100%; display:flex; align-items:center; justify-content:flex-end; gap:8px; }
+.opc-save-hint { margin-right:auto; font-size:11px; color:#8b96a4; }
+.opc-dialog-actions .mud-button-root { font-size:12px; border-radius:8px; padding:9px 16px; }
+@media (max-width:700px) {
+  .opc-config-dialog { width:calc(100% - 16px); margin:8px; max-height:96vh; }
+  .opc-config-dialog .mud-dialog-title,.opc-config-dialog .mud-dialog-content,.opc-config-dialog .mud-dialog-actions { padding:14px; }
+  .opc-dialog-title .mud-typography-h6 { font-size:15px; }
+  .opc-identity-grid,.opc-advanced-grid { grid-template-columns:1fr; }
+  .opc-endpoint-strip { align-items:flex-start; flex-direction:column; gap:2px; }
+  .opc-direction-header { gap:8px; padding:10px; }
+  .opc-direction-header p { font-size:11px; }
+  .opc-direction-body { padding:2px 10px 8px; }
+  .opc-tag-row { grid-template-columns:minmax(0,1fr) 96px 24px; gap:6px; }
+  .opc-inline-setting { max-width:100%; }
+  .opc-save-hint { display:none; }
+}
+/* Alerts/targets: làm nổi bật gap SLO và bố trí form ngưỡng theo lưới. */
+.alert-gap {
+  color: var(--oee-error);
+  font-weight: 700;
+}
+.alert-detail-grid {
+  display: grid;
+  grid-template-columns: 9rem minmax(12rem, 1fr);
+  align-items: center;
+  gap: 0.75rem 1rem;
+}
+.alert-detail-grid > span:nth-child(odd) {
+  color: var(--oee-muted);
+  font-weight: 700;
+}
+
+/* Alert/target editor co lưới trên tablet và điện thoại. */
+
+@media (max-width: 767px) {
+  .alert-detail-grid{ grid-template-columns: 1fr; }
+}
+/* Prompt 12.3A: MudBlazor dialog sizing only; controls keep native Mud behavior. */
+.sample-plan-dialog {
+    width: min(1180px, calc(100vw - 32px));
+    max-height: calc(100vh - 32px);
+}
+
+/* Focus ring cho avatar/menu tài khoản khi điều hướng bằng bàn phím. */
+.user-menu-trigger {
+  display: inline-flex;
+  cursor: pointer;
+  border-radius: 50%;
+}
+
+.user-menu-trigger:focus-visible {
+  outline: 2px solid var(--mud-palette-secondary);
+  outline-offset: 2px;
+}
+
+/* Dialog master nhỏ hơn dialog bulk nhưng vẫn giới hạn theo viewport. */
+.master-create-dialog {
+    width: min(620px, calc(100vw - 32px));
+}
+
+.sample-plan-dialog .mud-dialog-content,
+.master-create-dialog .mud-dialog-content {
+    overflow-y: auto;
+}
+
+/* Footer sticky giúp nút transaction luôn truy cập được khi preview có nhiều dòng. */
+.sample-plan-dialog .mud-dialog-actions,
+.master-create-dialog .mud-dialog-actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    background: var(--mud-palette-surface);
+    border-top: 1px solid var(--mud-palette-lines-default);
+}
+
+.bulk-summary {
+    border: 1px dashed var(--mud-palette-lines-default);
+    background: var(--mud-palette-background-gray);
+}
+
+@media (max-width: 960px) {
+    .sample-plan-dialog,
+    .master-create-dialog {
+        width: calc(100vw - 16px);
+        max-height: calc(100vh - 16px);
+        margin: 8px;
+    }
+}
+.kpi-muted { color: #7b8da4; }
+.kpi-filters .mud-grid { align-items: center; }
+.kpi-filters .mud-input-control { margin-top: 0; }
+.kpi-trend, .kpi-table { border-radius: 8px; overflow: hidden; }
+.kpi-emphasis { font-weight: 700; }
+.kpi-table .mud-table-cell { padding: 8px 14px; font-size: .8rem; white-space: nowrap; }
+.kpi-table th.mud-table-cell { color: #71849a; font-size: .73rem; }
+.kpi-table .mud-table-cell .mud-typography { font-size: .8rem; }
+.kpi-table .kpi-number { text-align: right; font-variant-numeric: tabular-nums; }
+.kpi-table .mud-chip { height: 22px; font-size: .72rem; }
+@media (max-width: 600px) {
+    .kpi-table .mud-table-cell { white-space: normal; }
+    .kpi-table .kpi-number { text-align: left; }
+}
+.equipment-timeline { border-radius: 8px; }
+.equipment-legend .mud-chip { height: 24px; font-size: .7rem; }
+.equipment-legend--Running { border-left: 8px solid var(--oee-success) !important; }
+.equipment-legend--Failure, .equipment-legend--Stopped { border-left: 8px solid var(--oee-error) !important; }
+.equipment-legend--PlannedStop { border-left: 8px solid var(--oee-planned-stop) !important; }
+.equipment-legend--OtherStop { border-left: 8px solid #9780d4 !important; }
+.equipment-legend--Unknown { border-left: 8px solid #b5c3d0 !important; }
+.equipment-legend--NoProduction { border-left: 8px solid #e4e5e3 !important; }
+.equipment-legend--Future { border-left: 8px solid #f1f5f9 !important; }
+.equipment-timeline-scroll { overflow-x: auto; }
+.equipment-timeline-row { display: grid; grid-template-columns: 145px minmax(530px, 1fr); min-width: 700px; align-items: center; gap: 12px; margin-bottom: 5px; }
+.equipment-timeline-row .mud-chip { margin: 0; height: 19px; font-size: .65rem; }
+.equipment-timeline-row .mud-typography-caption { font-size: .65rem; }
+.equipment-time-axis { margin: 10px 0 12px; }
+.equipment-axis-track { position: relative; height: 18px; margin-right: 20px; }
+.equipment-axis-label { position: absolute; transform: translateX(-50%); color: var(--oee-muted); white-space: nowrap; }
+.equipment-axis-label:first-child { transform: none; }
+.equipment-axis-label:last-child { transform: translateX(-100%); }
+.equipment-track { position: relative; height: 24px; overflow: hidden; border-radius: 4px; border: 1px solid var(--oee-border); }
+.equipment-segment { display: block; position: absolute; height: 100%; top: 0; min-width: 1px; }
+.equipment-segment .equipment-segment-button { display: block; min-width: 0; width: 100%; height: 100%; padding: 0; border-radius: 0; }
+.equipment-segment--Running { background: var(--oee-success); }
+.equipment-segment--Failure, .equipment-segment--Stopped { background: var(--oee-error); z-index: 2; min-width: 2px; }
+.equipment-segment--PlannedStop { background: var(--oee-planned-stop); z-index: 2; min-width: 2px; }
+.equipment-segment--OtherStop { background: #9780d4; z-index: 2; min-width: 2px; }
+.equipment-segment--Unknown { background: #b5c3d0; }
+.equipment-segment--NoProduction { background: repeating-linear-gradient(45deg, #e5e6e3 0 4px, #f2f3f0 4px 8px); }
+.equipment-segment--Future { background: #f1f5f9; }
+.equipment-segment:focus-within { outline: 2px solid var(--oee-blue-600); outline-offset: -2px; z-index: 3; }
+.reliability-table .mud-table-cell { padding: 6px 14px; }
+.reliability-table .mud-typography-caption { font-size: .7rem !important; line-height: 1.3; }

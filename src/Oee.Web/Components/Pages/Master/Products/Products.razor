@@ -1,0 +1,101 @@
+@namespace Oee.Web.Components.Pages.Master
+@page "/master/products"
+@using Oee.Application.Contracts.Modules
+@using Oee.Application.Contracts.Operations
+@attribute [Authorize]
+@inject Oee.Application.Modules.IMasterDataQueryService Query
+@inject Oee.Application.Common.IUseCaseExecutor Commands
+@inject IDialogService DialogService
+
+@* Trang /master/products chỉ dành cho người có quyền đọc dữ liệu nền.
+   Component lấy danh sách từ Application Query theo cơ chế phân trang phía máy chủ;
+   các lệnh tạo, sửa trạng thái và xóa mềm đi qua Application Command rồi mới tới EF Core/SQL Server. *@
+<PageTitle>Sản phẩm / SKU</PageTitle>
+
+<PageHeader OnRefresh="ReloadAsync" Title="Sản phẩm / SKU"
+            Subtitle="Danh mục sản phẩm dùng cho kế hoạch, định mức và truy vết sản lượng">
+    <Actions>
+
+        <AuthorizeAction Policy="@Capabilities.MasterDataWrite">
+            <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Add"
+                       OnClick="OpenCreateDialogAsync">
+                Thêm sản phẩm
+            </MudButton>
+        </AuthorizeAction>
+
+    </Actions>
+    <Metrics><MetricCard Label="Sản phẩm / SKU" Value="@_totalCount.ToString("N0")" Icon="@Icons.Material.Filled.Inventory2" Color="Color.Info" /></Metrics>
+</PageHeader>
+
+@if (!string.IsNullOrWhiteSpace(_error))
+{
+    <MudAlert Dense="true" Class="my-3"
+              Severity="Severity.Error" Variant="Variant.Outlined">@_error</MudAlert>
+}
+
+<PageFilter>
+    <MudTextField T="string" @bind-Value="_search" Label="Mã, tên, đơn vị hoặc mô tả"
+                  Immediate="true" DebounceInterval="500"
+                  @bind-Value:after="ApplyFiltersAsync" />
+    <MudSelect T="string" @bind-Value="_status" Label="Trạng thái"
+               Clearable="true"
+               @bind-Value:after="ApplyFiltersAsync">
+        @foreach (MasterLookupOption option in _lookups?.Statuses ?? [])
+        {
+            <MudSelectItem Value="@option.Code">@option.Name</MudSelectItem>
+        }
+    </MudSelect>
+</PageFilter>
+
+
+<PageTable TItem="ProductListItem"
+             @ref="_table"
+             ItemsProvider="LoadAsync"
+             AriaLabel="Danh sách sản phẩm"
+             EmptyTitle="Không có sản phẩm phù hợp">
+    <HeaderContent>
+        <MudTh>
+            <MudTableSortLabel T="ProductListItem" SortLabel="code">Mã</MudTableSortLabel>
+        </MudTh>
+        <MudTh>
+            <MudTableSortLabel T="ProductListItem" SortLabel="name">Tên</MudTableSortLabel>
+        </MudTh>
+        <MudTh>
+            <MudTableSortLabel T="ProductListItem" SortLabel="uom">Đơn vị</MudTableSortLabel>
+        </MudTh>
+        <MudTh>Mô tả</MudTh>
+        <MudTh>
+            <MudTableSortLabel T="ProductListItem" SortLabel="status">Trạng thái</MudTableSortLabel>
+        </MudTh>
+        <MudTh>
+            <MudTableSortLabel T="ProductListItem" SortLabel="updated">Cập nhật</MudTableSortLabel>
+        </MudTh>
+        <MudTh>Thao tác</MudTh>
+    </HeaderContent>
+    <RowTemplate Context="item">
+        <MudTd DataLabel="Mã"><strong>@item.Code</strong></MudTd>
+        <MudTd DataLabel="Tên">@item.Name</MudTd>
+        <MudTd DataLabel="Đơn vị">@item.DefaultUom</MudTd>
+        <MudTd DataLabel="Mô tả">@item.Description</MudTd>
+        <MudTd DataLabel="Trạng thái">
+            <StatusChip Text="@item.Status"
+                        Kind="@(item.Status == "Active"
+                            ? SemanticKind.Success
+                            : SemanticKind.Warning)" />
+        </MudTd>
+        <MudTd DataLabel="Cập nhật">@item.UpdatedAt.ToLocalTime().ToString("g")</MudTd>
+        <MudTd DataLabel="Thao tác">
+            <AuthorizeAction Policy="@Capabilities.MasterDataWrite">
+                <MasterEditActions Kind="MasterEditKind.Product" Id="item.Id" Status="@item.Status"
+                                   EditLabel="Chỉnh sửa sản phẩm" ActionLabel="@($"Thao tác {item.Code}")" OnChanged="ReloadAsync">
+                    <RowAction Label="Sao chép sản phẩm"
+                                   Icon="@Icons.Material.Filled.ContentCopy" Color="Color.Primary"
+                                   OnClick="@(() => CopyAsync(item))" />
+                    <RowAction Label="Xóa sản phẩm"
+                                   Icon="@Icons.Material.Filled.Delete" Color="Color.Error"
+                                   OnClick="@(() => DeleteAsync(item))" />
+                </MasterEditActions>
+            </AuthorizeAction>
+        </MudTd>
+    </RowTemplate>
+</PageTable>

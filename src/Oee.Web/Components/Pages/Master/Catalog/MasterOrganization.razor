@@ -1,0 +1,24 @@
+@namespace Oee.Web.Components.Pages
+@page "/master-data"
+@page "/organization"
+@attribute [Authorize]
+
+@* Trang mục lục cho dữ liệu nền và cơ cấu tổ chức. Mỗi thẻ điều hướng tới một route chuyên biệt;
+   trang này không tải hoặc ghi SQL và không thay thế authorization trên route đích. *@
+<PageTitle>Dữ liệu nền và cơ cấu tổ chức</PageTitle>
+<PageHeader Title="Dữ liệu nền và cơ cấu tổ chức"
+            Subtitle="Quản lý dữ liệu nền và cơ cấu tổ chức trên bảng cây" />
+
+<div class="master-route-grid" aria-label="Các phân hệ dữ liệu nền">
+    @foreach (MasterCatalogEntry entry in Entries)
+    {
+        <MudPaper Class="pa-4" Elevation="0">
+            <MudText Typo="Typo.h6">@entry.Title</MudText>
+            <MudText Typo="Typo.body2">@entry.Description</MudText>
+            <MudButton Href="@entry.Route"
+                       Class="mt-3">
+                Mở danh mục
+            </MudButton>
+        </MudPaper>
+    }
+</div>

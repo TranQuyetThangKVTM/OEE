@@ -1,0 +1,35 @@
+@namespace Oee.Web.Components.Pages.Plc
+@using Oee.Application.Contracts.PlcIntegration
+@inject Oee.Application.Common.IUseCaseExecutor Plc
+
+<MudDialog>
+    <TitleContent><MudText Typo="Typo.h6">@(MappingId.HasValue ? "Cập nhật ánh xạ PLC" : "Thêm ánh xạ PLC")</MudText></TitleContent>
+    <DialogContent>
+        @if (_error is not null)
+        {
+            <MudAlert Severity="Severity.Error" Class="mb-3">@_error</MudAlert>
+        }
+        <MudForm @ref="_form">
+            <MudStack Spacing="3">
+                <MudAlert Severity="Severity.Info" Dense="true">Gắn mã PLC với thiết bị OEE. Sau khi lưu, bấm cấu hình tag ở cột Tag OPC UA.</MudAlert>
+                <MudTextField @bind-Value="_externalId" Label="Mã thiết bị PLC/SCADA" Required="true" MaxLength="128" />
+                <MudSelect T="Guid" @bind-Value="_connectionId" Label="Kết nối OPC UA" Required="true">
+                    @foreach (var connection in Lookups.Connections)
+                    {
+                        <MudSelectItem Value="connection.Id">@connection.Code — @connection.Name</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudAutocomplete T="Guid" @bind-Value="_workUnitId" Label="Thiết bị OEE" SearchFunc="SearchWorkUnits"
+                                 ToStringFunc="WorkUnitLabel" Required="true" CoerceText="false" />
+                <MudAutocomplete T="Guid?" @bind-Value="_productId" Label="Sản phẩm mặc định (tùy chọn)" SearchFunc="SearchProducts"
+                                 ToStringFunc="ProductLabel" Clearable="true" ResetValueOnEmptyText="true"
+                                 HelperText="Dùng khi PLC không trả mã sản phẩm." />
+                <MudTextField @bind-Value="_note" Label="Ghi chú" Lines="2" MaxLength="500" />
+            </MudStack>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Disabled="_saving">Hủy</MudButton>
+        <MudButton OnClick="SaveAsync" Disabled="_saving || _loading" Color="Color.Primary" Variant="Variant.Filled">Lưu</MudButton>
+    </DialogActions>
+</MudDialog>

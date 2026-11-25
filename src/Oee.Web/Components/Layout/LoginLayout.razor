@@ -1,0 +1,15 @@
+@inherits LayoutComponentBase
+
+@* Layout tối giản cho Login/ChangePassword: vẫn cung cấp đầy đủ MudBlazor provider nhưng không có drawer AppBar. *@
+<MudThemeProvider Theme="Oee.Web.Theming.OeeTheme.Industrial" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+@* Body là nội dung page được Router đặt vào layout. *@
+@Body
+
+<div id="blazor-error-ui" data-nosnippet>
+    Đã xảy ra lỗi ngoài dự kiến. <a href="." class="reload">Tải lại</a>
+    <button class="dismiss" aria-label="Đóng thông báo lỗi">×</button>
+</div>

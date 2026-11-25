@@ -1,0 +1,17 @@
+@namespace Oee.Web.Components.Pages.Reports
+@using Oee.Application.Contracts.Reporting
+<MudDialog>
+    <DialogContent>
+        <MudStack Spacing="2">
+            <MudText Typo="Typo.h6">@Row.Code — @Row.Name</MudText>
+            <MudChip T="string" Variant="Variant.Outlined">@EquipmentTimeText.State(Segment.State)</MudChip>
+            <MudText Typo="Typo.body2">Bắt đầu: <strong>@EquipmentTimeText.Local(Segment.Start, TimeZoneId)</strong></MudText>
+            <MudText Typo="Typo.body2">Kết thúc đoạn: <strong>@EquipmentTimeText.Local(Segment.End, TimeZoneId)</strong></MudText>
+            <MudText Typo="Typo.body2">Thời lượng: <strong>@EquipmentTimeText.Duration((decimal)(Segment.End - Segment.Start).TotalMinutes)</strong></MudText>
+            @if (Segment.IsOpen) { <MudAlert Severity="Severity.Warning" Dense="true">Sự kiện đang mở. Thời lượng tính tới lần tải dữ liệu này.</MudAlert> }
+            @if (!string.IsNullOrWhiteSpace(Segment.Reason)) { <MudText>Lý do: @Segment.Reason</MudText> }
+            @if (!string.IsNullOrWhiteSpace(Segment.Note)) { <MudText>Ghi chú: @Segment.Note</MudText> }
+        </MudStack>
+    </DialogContent>
+    <DialogActions><MudButton OnClick="Close" Color="Color.Primary" Variant="Variant.Filled">Đóng</MudButton></DialogActions>
+</MudDialog>

@@ -1,0 +1,49 @@
+@namespace Oee.Web.Components.Layout
+@implements IDisposable
+@inject NavigationManager Navigation
+
+<MudStack Row="true" Spacing="0" Class="workspace-tabs" role="navigation" aria-label="Các trang đang mở">
+    @foreach (var tab in State.Tabs)
+    {
+        <MudStack Row="true" Spacing="0" AlignItems="AlignItems.Center" @key="tab.Url"
+                  Class="@(tab.Url == State.ActiveUrl ? "workspace-tab workspace-tab--active" : "workspace-tab")">
+            <MudButton Href="@tab.Url" Size="Size.Small" Variant="Variant.Text" title="@tab.Title"
+                       aria-current="@(tab.Url == State.ActiveUrl ? "page" : null)" Class="workspace-tab-link">
+                @tab.Title
+            </MudButton>
+            @if (tab.Url != "/")
+            {
+                <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" Class="workspace-tab-close"
+                               aria-label="@($"Đóng tab {tab.Title}")" title="Đóng tab"
+                               OnClick="() => Close(tab.Url)" />
+            }
+        </MudStack>
+    }
+</MudStack>
+
+@code {
+    [Parameter, EditorRequired] public WorkspaceTabState State { get; set; } = default!;
+
+    protected override void OnInitialized()
+    {
+        State.Changed += Refresh;
+        Navigation.LocationChanged += LocationChanged;
+        State.Open(CurrentUrl());
+    }
+
+    private string CurrentUrl() => "/" + Navigation.ToBaseRelativePath(Navigation.Uri);
+    private void LocationChanged(object? sender, LocationChangedEventArgs args) => State.Open(CurrentUrl());
+    private void Refresh() => _ = InvokeAsync(StateHasChanged);
+    private void Close(string url)
+    {
+        var next = State.Close(url);
+        if (next is not null) Navigation.NavigateTo(next);
+    }
+
+    public void Dispose()
+    {
+        State.Changed -= Refresh;
+        Navigation.LocationChanged -= LocationChanged;
+        GC.SuppressFinalize(this);
+    }
+}

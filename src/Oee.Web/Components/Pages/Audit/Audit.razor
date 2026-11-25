@@ -1,0 +1,77 @@
+@namespace Oee.Web.Components.Pages
+@page "/audit"
+@page "/account/audit-log"
+@using Oee.Application.Audit
+@using Oee.Application.Contracts.Audit
+@attribute [Authorize]
+@inject IAuditQueryService AuditService
+@inject Microsoft.Extensions.Options.IOptions<AuditRetentionOptions> RetentionOptions
+@inject IDialogService DialogService
+
+@* Route audit yêu cầu AuditRead và chỉ cung cấp query/detail, không có update hoặc xóa từng log.
+   Bảng filter/sort/page phía server và hiển thị snapshot đã lưu để lịch sử vẫn đọc được khi user/entity đổi tên.
+   Retention là capability riêng, lấy mốc tháng từ cấu hình server và ghi lịch sử chạy riêng. *@
+<PageTitle>Nhật ký thao tác</PageTitle>
+
+<PageHeader OnRefresh="ReloadAsync" Title="Nhật ký thao tác"
+            Subtitle="Ghi lại mọi thay đổi dữ liệu: ai làm, làm gì, lúc nào, từ IP nào. Append-only — không sửa, không xóa từng bản ghi.">
+    <Actions>
+        <RoleGuard Policy="@Capabilities.AuditRetentionManage">
+            <MudButton Color="Color.Secondary" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.AutoDelete"
+                       OnClick="RunRetentionAsync">Dọn log cũ (@(_retentionMonths)T)</MudButton>
+        </RoleGuard>
+    </Actions>
+    <Metrics><MetricCard Label="Bản ghi thao tác" Value="@_totalCount.ToString("N0")" Icon="@Icons.Material.Filled.History" Color="Color.Info" /></Metrics>
+</PageHeader>
+
+@if (!string.IsNullOrWhiteSpace(_error))
+{
+    <MudAlert Dense="true" Class="my-3"
+              Severity="Severity.Error" Variant="Variant.Outlined">@_error</MudAlert>
+}
+
+<PageFilter>
+    <MudTextField T="string" @bind-Value="_user" Label="Tìm theo tên người dùng"
+                  Immediate="true" DebounceInterval="500"
+                  @bind-Value:after="ApplyFiltersAsync" />
+    <MudSelect T="string" @bind-Value="_entity" Label="Loại đối tượng"
+               Clearable="true"
+               @bind-Value:after="ApplyFiltersAsync">
+        @foreach (var entity in EntityTypes) { <MudSelectItem T="string" Value="@entity">@EntityName(entity)</MudSelectItem> }
+    </MudSelect>
+    <MudSelect T="string" @bind-Value="_action" Label="Thao tác"
+               Clearable="true"
+               @bind-Value:after="ApplyFiltersAsync">
+        @foreach (var action in Actions) { <MudSelectItem T="string" Value="@action">@ActionName(action)</MudSelectItem> }
+    </MudSelect>
+    <MudDateRangePicker @bind-DateRange="_range" Label="Khoảng thời gian"
+                        @bind-DateRange:after="ApplyFiltersAsync" />
+</PageFilter>
+
+
+<PageTable TItem="AuditLogResponse" @ref="_table" ItemsProvider="LoadAsync"
+             AriaLabel="Nhật ký thao tác" EmptyTitle="Không có nhật ký phù hợp">
+    <HeaderContent>
+        <MudTh><MudTableSortLabel T="AuditLogResponse" SortLabel="timestamp">Thời điểm</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="AuditLogResponse" SortLabel="user">Người dùng</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="AuditLogResponse" SortLabel="action">Thao tác</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="AuditLogResponse" SortLabel="entity">Loại đối tượng</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="AuditLogResponse" SortLabel="subject">Đối tượng</MudTableSortLabel></MudTh>
+        <MudTh>IP</MudTh><MudTh>Chi tiết</MudTh>
+    </HeaderContent>
+    <RowTemplate Context="log">
+        <MudTd DataLabel="Thời điểm"><strong>@log.Timestamp.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</strong></MudTd>
+        <MudTd DataLabel="Người dùng">@(log.UserName ?? "System")</MudTd>
+        <MudTd DataLabel="Thao tác"><StatusChip Text="@ActionName(log.Action)" Kind="@ActionKind(log.Action)" /></MudTd>
+        <MudTd DataLabel="Loại đối tượng"><strong>@EntityName(log.EntityType)</strong><small class="table-subline">@log.EntityType</small></MudTd>
+        <MudTd DataLabel="Đối tượng">@(log.EntitySubject ?? "—")<small class="table-subline">@log.EntityId</small></MudTd>
+        <MudTd DataLabel="IP">@(log.IpAddress ?? "—")</MudTd>
+        <MudTd DataLabel="Chi tiết">
+            <RowActionMenu Label="Xem chi tiết nhật ký">
+                <RowAction Label="Xem chi tiết audit"
+                           Icon="@Icons.Material.Filled.Visibility"
+                           OnClick="() => ShowDetailsAsync(log.Id)" />
+            </RowActionMenu>
+        </MudTd>
+    </RowTemplate>
+</PageTable>

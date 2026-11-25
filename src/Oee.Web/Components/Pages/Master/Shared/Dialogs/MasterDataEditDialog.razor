@@ -1,0 +1,111 @@
+@namespace Oee.Web.Components.Pages.Master
+@using Oee.Application.Contracts.Modules
+@using Oee.Application.Contracts.Operations
+@inject Oee.Application.Modules.IMasterDataQueryService Query
+@inject Oee.Application.Common.IUseCaseExecutor Commands
+@inject IAuthorizationService Authorization
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ISnackbar Snackbar
+
+@* Dialog update tải lại bản ghi theo Kind + Id. Code của năm cấp tổ chức được sửa, quan hệ cha chỉ đọc.
+   Request không có field di chuyển parent. RowVersion chống ghi đè đồng thời;
+   shift dùng TimeOnly và Site dùng TimeZoneId hợp lệ. Dialog chỉ đóng sau command SQL thành công. *@
+<MudDialog Class="master-edit-dialog">
+    <TitleContent><MudText Typo="Typo.h6">@Title</MudText></TitleContent>
+    <DialogContent>
+        @if (_loading)
+        {
+            <MudStack AlignItems="AlignItems.Center" Class="pa-6"><MudProgressCircular Indeterminate="true" /></MudStack>
+        }
+        else if (!string.IsNullOrWhiteSpace(_loadError))
+        {
+            <MudAlert Severity="Severity.Error">@_loadError</MudAlert>
+        }
+        else
+        {
+            <MudForm @ref="_form" @bind-IsValid="_valid">
+                @if (!string.IsNullOrWhiteSpace(_saveError))
+                {
+                    <MudAlert Class="mb-3"
+                              Severity="Severity.Error">@_saveError</MudAlert>
+                }
+                <MudGrid>
+                    @if (!string.IsNullOrWhiteSpace(_parent))
+                    {
+                        <MudItem xs="12"><MudTextField T="string" Label="@ParentLabel" Value="_parent"
+                                      ReadOnly="true" Disabled="true" /></MudItem>
+                    }
+                    <MudItem xs="12">
+                        <MudTextField T="string" Label="@CodeLabel" @bind-Value="_code"
+                                      ReadOnly="@(!CodeEditable)" Disabled="@(!CodeEditable)" Required="CodeEditable" MaxLength="32" />
+                    </MudItem>
+                    <MudItem xs="12"><MudTextField T="string" Label="@NameLabel" @bind-Value="_name"
+                                  Required="true" MaxLength="200" /></MudItem>
+
+                    @if (Kind == MasterEditKind.Product)
+                    {
+                        <MudItem xs="12"><MudSelect T="string" Label="Đơn vị mặc định" @bind-Value="_uom"
+                                   Required="true">
+                            @foreach (var uom in AllowedUoms) { <MudSelectItem T="string" Value="@uom">@uom</MudSelectItem> }
+                        </MudSelect></MudItem>
+                    }
+                    @if (Kind is MasterEditKind.Product or MasterEditKind.Enterprise or MasterEditKind.Site
+                        or MasterEditKind.Area or MasterEditKind.WorkCenter or MasterEditKind.WorkUnit or MasterEditKind.DowntimeReason)
+                    {
+                        <MudItem xs="12">
+                            <MudTextField T="string" Label="Mô tả" @bind-Value="_description"
+                                          Lines="3"
+                                          MaxLength="500" />
+                        </MudItem>
+                    }
+                    @if (Kind == MasterEditKind.Site)
+                    {
+                        <MudItem xs="12"><MudAutocomplete T="string" Label="Múi giờ (Windows ID)" @bind-Value="_timeZone" SearchFunc="SearchTimeZonesAsync" HelperText="Ví dụ: SE Asia Standard Time"
+                                         Required="true" Clearable="true" MaxItems="20" /></MudItem>
+                    }
+                    @if (Kind == MasterEditKind.DowntimeReason)
+                    {
+                        <MudItem xs="12"><MudSelect T="string" Label="Phân loại" @bind-Value="_category"
+                                   Required="true">
+                            @foreach (var option in _lookups?.DowntimeCategories ?? []) { <MudSelectItem T="string" Value="@option.Code">@option.Name</MudSelectItem> }
+                        </MudSelect></MudItem>
+                        <MudItem xs="12"><MudSelect T="string" Label="Nhóm chi tiết" @bind-Value="_reasonKind"
+                                   Required="true">
+                            @foreach (var option in ValidReasonKinds) { <MudSelectItem T="string" Value="@option.Code">@option.Name</MudSelectItem> }
+                        </MudSelect></MudItem>
+                    }
+                    @if (Kind == MasterEditKind.Shift)
+                    {
+                        <MudItem xs="12"><MudSelect T="string" Label="Loại ca" Value="_shiftType"
+                                   ValueChanged="ApplyShiftType">
+                            <MudSelectItem T="string" Value="@("Morning")">Ca sáng</MudSelectItem>
+                            <MudSelectItem T="string" Value="@("Afternoon")">Ca chiều</MudSelectItem>
+                            <MudSelectItem T="string" Value="@("Night")">Ca đêm</MudSelectItem>
+                            <MudSelectItem T="string" Value="@("Custom")">Tùy chỉnh</MudSelectItem>
+                        </MudSelect></MudItem>
+                        <MudItem xs="12" sm="6"><MudTimePicker Label="Bắt đầu" @bind-Time="_startTime"
+                                       Required="true" /></MudItem>
+                        <MudItem xs="12" sm="6"><MudTimePicker Label="Kết thúc" @bind-Time="_endTime"
+                                       Required="true" /></MudItem>
+                        @if (_startTime.HasValue && _endTime.HasValue && _endTime < _startTime)
+                        {
+                            <MudItem xs="12"><MudAlert Dense="true"
+                                      Severity="Severity.Info">Ca kết thúc vào ngày hôm sau.</MudAlert></MudItem>
+                        }
+                    }
+                </MudGrid>
+            </MudForm>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton Disabled="_saving"
+                   OnClick="Cancel">Hủy</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                   Disabled="@(_loading || _saving || !_valid || !string.IsNullOrWhiteSpace(_loadError))"
+                   OnClick="SaveAsync">
+            @if (_saving) { <MudProgressCircular Size="Size.Small" Class="mr-2"
+                                 Indeterminate="true" /> }
+            Lưu
+        </MudButton>
+    </DialogActions>
+</MudDialog>

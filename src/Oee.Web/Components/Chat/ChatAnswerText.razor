@@ -1,0 +1,33 @@
+@namespace Oee.Web.Components.Chat
+
+@foreach (var line in Text.Split('\n'))
+{
+    <MudText Typo="@(IsContext(line) ? Typo.caption : Typo.body2)" HtmlTag="div">
+        @foreach (var part in Emphasis(line))
+        {
+            if (part.Bold)
+            {
+                <MudElement HtmlTag="strong">@part.Text</MudElement>
+            }
+            else
+            {
+                @part.Text
+            }
+        }
+    </MudText>
+}
+
+@code {
+    [Parameter, EditorRequired] public string Text { get; set; } = string.Empty;
+
+    private static bool IsContext(string line) => line.StartsWith("Kỳ:", StringComparison.Ordinal)
+        || line.StartsWith("Trạng thái máy:", StringComparison.Ordinal);
+
+    // Chỉ nhận cặp **in đậm**. Mọi nội dung vẫn do Razor encode, không render HTML tùy ý.
+    private static IEnumerable<(string Text, bool Bold)> Emphasis(string line)
+    {
+        var parts = line.Split("**", StringSplitOptions.None);
+        if (parts.Length % 2 == 0) return [(line, false)];
+        return parts.Select((text, index) => (text, index % 2 == 1));
+    }
+}

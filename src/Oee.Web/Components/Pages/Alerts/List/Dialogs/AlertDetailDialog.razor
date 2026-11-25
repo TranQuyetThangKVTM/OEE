@@ -1,0 +1,22 @@
+@namespace Oee.Web.Components.Pages.Alerts
+@using Oee.Application.Contracts.Modules
+
+@* Dialog read-only hiển thị một AlertListItem. Không tải EF Entity và không thực hiện mutation. *@
+<MudDialog>
+    <DialogContent>
+        <MudText Typo="Typo.h6">@Alert.WorkUnit · @Alert.Metric</MudText>
+        <MudText Typo="Typo.caption">@Alert.WorkUnitName · @Alert.PeriodType/@Alert.Period</MudText>
+        <MudDivider Class="my-3" />
+        <div class="alert-detail-grid">
+            <span>Trạng thái</span><StatusChip Text="@Alert.State" Kind="@StateKind(Alert.State)" />
+            <span>Mức độ</span><StatusChip Text="@Alert.Severity" Kind="@SeverityKind(Alert.Severity)" />
+            <span>Thực tế</span><strong>@Alert.Actual.ToString("P1")</strong>
+            <span>Mục tiêu</span><strong>@Alert.Target.ToString("P1")</strong>
+            <span>Chênh lệch</span><strong>@Alert.Difference.ToString("P1")</strong>
+            <span>Phát sinh</span><span>@Alert.TriggeredAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</span>
+            <span>Tiếp nhận</span><span>@(Alert.AcknowledgedBy ?? "—")</span>
+            <span>Ghi chú</span><span>@(Alert.Note ?? "—")</span>
+        </div>
+    </DialogContent>
+    <DialogActions><MudButton OnClick="Close">Đóng</MudButton></DialogActions>
+</MudDialog>

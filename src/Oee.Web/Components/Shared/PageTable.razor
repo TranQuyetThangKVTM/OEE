@@ -1,0 +1,27 @@
+@typeparam TItem
+
+@* Wrapper MudTable cho server-side paging/sorting. ItemsProvider do page cha cung cấp và phải gọi Application/API;
+   table không giữ business logic, không tải toàn bộ dữ liệu vào browser. *@
+<MudPaper Class="oee-table-surface" Elevation="0">
+<TableToolbar TableId="@tableId" Title="@AriaLabel">@ToolbarContent</TableToolbar>
+<MudTable T="TItem" id="@tableId" @ref="innerTable" ServerData="LoadAsync" aria-label="@AriaLabel" Class="oee-data-table"
+          Dense="true" RowsPerPage="@RowsPerPage" Breakpoint="Breakpoint.Sm"
+          Hover="true" Striped="@Striped" RowClassFunc="@RowClassFunc"
+          GroupBy="@GroupBy" GroupHeaderClass="@($"oee-table-group {GroupHeaderClass}")"
+          ColGroup="@EffectiveColGroup"
+          Height="@Height" FixedHeader="@FixedHeader"
+          Loading="Loading">
+    <HeaderContent>@HeaderContent</HeaderContent>
+    <RowTemplate>@RowTemplate(context)</RowTemplate>
+    <GroupHeaderTemplate Context="group">
+        @if (GroupHeaderTemplate is not null) { @GroupHeaderTemplate(group) }
+        else
+        {
+            <MudTd colspan="@GroupColumnSpan"><TableGroupHeading Key="@group.Key" Count="@group.Items.Count()" /></MudTd>
+        }
+    </GroupHeaderTemplate>
+    <NoRecordsContent><EmptyState Title="@EmptyTitle" /></NoRecordsContent>
+    <LoadingContent><MudText Class="pa-4">Đang tải dữ liệu…</MudText></LoadingContent>
+    <PagerContent><MudTablePager PageSizeOptions="PageSizeOptions" /></PagerContent>
+</MudTable>
+</MudPaper>

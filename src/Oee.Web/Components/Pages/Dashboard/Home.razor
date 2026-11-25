@@ -1,0 +1,205 @@
+@namespace Oee.Web.Components.Pages
+@page "/"
+@using Oee.Application.Contracts.Modules
+@using Oee.Web.Components.Pages.Dashboard.Components
+@inject IDialogService DialogService
+@using ChartSeries = MudBlazor.ChartSeries<double>
+@attribute [Authorize]
+@implements IDisposable
+@inject Oee.Application.Modules.IDashboardQueryService Query
+@inject Microsoft.Extensions.Options.IOptions<Oee.Web.Configuration.DashboardUiOptions> UiOptions
+
+@* Route: /. Màn hình tổng quan yêu cầu DashboardRead và tải dữ liệu thật qua IDashboardQueryService.
+   Query trả filter + DashboardModel đã tính A/P/Q/OEE; Razor chỉ đổi tỷ lệ 0..1 sang chuỗi/phần trăm để hiển thị.
+   Page có loading/error/empty, auto refresh và drill-down tới báo cáo; không ghi trực tiếp SQL. *@
+<PageTitle>Bảng điều khiển OEE</PageTitle>
+
+<PageHeader OnRefresh="ReloadAsync" RefreshDisabled="@loading" Title="Bảng điều khiển OEE" Subtitle="Tổng quan hiệu suất sản xuất theo phạm vi và thời gian đã chọn" />
+
+@* Filter phân cấp Site → Area → WorkCenter → WorkUnit và thêm Product/Shift/khoảng ngày.
+   Mỗi thay đổi hợp lệ tự tạo DashboardQueryRequest; không cần một nút áp dụng riêng. *@
+<section class="dashboard-filter" aria-label="Bộ lọc dashboard">
+    <div class="quick-ranges" role="group" aria-label="Khoảng thời gian nhanh">
+        <button type="button" class="quick-range @(activeRangeDays == 1 ? "active" : null)" @onclick="() => SetQuickRangeAsync(1)">Hôm nay</button>
+        <button type="button" class="quick-range @(activeRangeDays == 7 ? "active" : null)" @onclick="() => SetQuickRangeAsync(7)">7 ngày</button>
+        <button type="button" class="quick-range @(activeRangeDays == 30 ? "active" : null)" @onclick="() => SetQuickRangeAsync(30)">30 ngày</button>
+    </div>
+
+    <div class="filter-grid">
+        <label>Từ ngày<input type="date" value="@DateValue(fromDate)" @onchange="ChangeFromDateAsync" aria-label="Từ ngày" /></label>
+        <label>Đến ngày<input type="date" value="@DateValue(toDate)" @onchange="ChangeToDateAsync" aria-label="Đến ngày" /></label>
+        <label>Nhà máy
+            <select value="@IdValue(siteId)" @onchange="OnSiteChangedAsync" aria-label="Nhà máy">
+                <option value="">Tất cả nhà máy</option>
+                @foreach (var option in filters?.Sites ?? []) { <option value="@option.Id">@option.Code · @option.Name</option> }
+            </select>
+        </label>
+        <label>Khu vực
+            <select value="@IdValue(areaId)" @onchange="OnAreaChangedAsync" aria-label="Khu vực">
+                <option value="">Tất cả khu vực</option>
+                @foreach (var option in VisibleAreas) { <option value="@option.Id">@option.Code · @option.Name</option> }
+            </select>
+        </label>
+        <label>Dây chuyền
+            <select value="@IdValue(workCenterId)" @onchange="OnWorkCenterChangedAsync" aria-label="Dây chuyền">
+                <option value="">Tất cả dây chuyền</option>
+                @foreach (var option in VisibleWorkCenters) { <option value="@option.Id">@option.Code · @option.Name</option> }
+            </select>
+        </label>
+        <label>Thiết bị
+            <select value="@IdValue(workUnitId)" @onchange="OnWorkUnitChangedAsync" aria-label="Thiết bị">
+                <option value="">Tất cả thiết bị</option>
+                @foreach (var option in VisibleWorkUnits) { <option value="@option.Id">@option.Code · @option.Name</option> }
+            </select>
+        </label>
+        <label>Sản phẩm
+            <select value="@IdValue(productId)" @onchange="OnProductChangedAsync" aria-label="Sản phẩm">
+                <option value="">Tất cả sản phẩm</option>
+                @foreach (var option in filters?.Products ?? []) { <option value="@option.Id">@option.Code · @option.Name</option> }
+            </select>
+        </label>
+        <label>Ca
+            <select value="@IdValue(shiftId)" @onchange="OnShiftChangedAsync" aria-label="Ca sản xuất">
+                <option value="">Tất cả ca</option>
+                @foreach (var option in VisibleShifts) { <option value="@option.Id">@option.Code · @option.Name</option> }
+            </select>
+        </label>
+    </div>
+
+    <div class="filter-actions">
+        <span>@SelectedScopeLabel</span>
+    </div>
+    @if (fromDate > toDate)
+    {
+        <p class="filter-validation" role="alert">Từ ngày phải nhỏ hơn hoặc bằng đến ngày.</p>
+    }
+</section>
+
+<div class="dashboard-content position-relative">
+    <LoadingOverlay Visible="loading" />
+
+    @if (!loading && error is null && model is not null)
+    {
+        @if (lineOee is not null)
+        {
+            <MudPaper Class="line-oee-panel" Elevation="0" Outlined="true">
+                <MudStack Row="true" Wrap="Wrap.Wrap" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Spacing="1">
+                    <MudStack Spacing="0">
+                        <MudText Typo="Typo.subtitle1"><strong>OEE toàn Line</strong></MudText>
+                        <MudText Typo="Typo.caption">@(lineOee.Line is null ? "" : lineOee.Line + " · ")Máy đại diện: @(lineOee.Machine ?? "Filler")</MudText>
+                    </MudStack>
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Toàn bộ SKU · theo lịch sản xuất Filler, trừ thời gian Off</MudText>
+                        @if (lineOee.WorkCenterId.HasValue)
+                        {
+                            <AuthorizeAction Policy="@Capabilities.ProductionPlanManage">
+                                <MudButton Size="Size.Small" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.EventBusy" OnClick="OpenLineOffAsync">Thời gian Off</MudButton>
+                            </AuthorizeAction>
+                        }
+                    </MudStack>
+                </MudStack>
+                @if (lineOee.Message is not null)
+                {
+                    <MudAlert Severity="Severity.Info" Dense="true" Class="mt-2">@lineOee.Message</MudAlert>
+                }
+                <MudGrid Spacing="2" Class="mt-1">
+                    <MudItem xs="12" sm="6">
+                        <LineOeeGauge Title="OEE ngày" Period="@lineOee.Date.ToString("dd/MM/yyyy", CultureInfo.CurrentCulture)" Result="@lineOee.Day"
+                                      EmptyLabel="@(lineOee.Day?.LoadingMinutes == 0 ? lineOee.DayOffMinutes > 0 ? "Off / không sản xuất" : "Không có thời gian tải" : null)" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <LineOeeGauge Title="OEE tháng" Period="@($"01/{lineOee.Date:MM/yyyy} – {lineOee.Date:dd/MM/yyyy}")" Result="@lineOee.Month"
+                                      EmptyLabel="@(lineOee.Month?.LoadingMinutes == 0 ? lineOee.MonthOffMinutes > 0 ? "Off / không sản xuất" : "Không có thời gian tải" : null)" />
+                    </MudItem>
+                </MudGrid>
+                @if (lineOee.CalculatedAt is { } calculatedAt && lineOee.TimeZoneId is { } zoneId)
+                {
+                    <MudText Typo="Typo.caption" Class="d-block mt-1">Tính lúc: @TimeZoneInfo.ConvertTimeBySystemTimeZoneId(calculatedAt, zoneId).ToString("dd/MM/yyyy HH:mm:ss", CultureInfo.CurrentCulture) · @zoneId</MudText>
+                }
+                <MudText Typo="Typo.caption" Class="d-block mt-1">Đã loại Off: ngày @lineOee.DayOffMinutes.ToString("0.##", CultureInfo.CurrentCulture) phút · tháng @lineOee.MonthOffMinutes.ToString("0.##", CultureInfo.CurrentCulture) phút</MudText>
+                @if (lineOee.MonthMissingMinutes > 0)
+                {
+                    <MudText Typo="Typo.caption" Color="Color.Warning">Chưa đủ dữ liệu: ngày @lineOee.DayMissingMinutes.ToString("0.##", CultureInfo.CurrentCulture) phút · tháng @lineOee.MonthMissingMinutes.ToString("0.##", CultureInfo.CurrentCulture) phút</MudText>
+                }
+            </MudPaper>
+        }
+        @if (!model.HasData)
+        {
+            <MudPaper Class="mt-4" Elevation="0">
+                <EmptyState Title="Chưa có dữ liệu OEE" Message="Không tìm thấy snapshot hoặc sản lượng trong phạm vi đã chọn. Hãy đổi bộ lọc hoặc khoảng thời gian." />
+            </MudPaper>
+        }
+        else
+        {
+            @* KPI chỉ định dạng số liệu từ DashboardModel, dùng chung thẻ gọn với các trang khác. *@
+            <section class="kpi-grid" aria-label="Chỉ số OEE">
+                <MetricCard Label="OEE tổng hợp thiết bị" Value="@FormatRatio(model.Oee.Value)" Icon="@Icons.Material.Filled.Speed"
+                            Description="@($"Mục tiêu {FormatRatio(model.Oee.Target)} · {Delta(model.Oee.Change)}")" Color="Color.Primary" />
+                @foreach (var card in RatioCards(model))
+                {
+                    <MetricCard Label="@card.Label" Value="@FormatRatio(card.Metric.Value)" Icon="@card.Icon" Hint="@card.Description"
+                                Description="@($"Mục tiêu {FormatRatio(card.Metric.Target)} · {Delta(card.Metric.Change)}")"
+                                Color="@MetricColor(card.Key)" />
+                }
+            </section>
+
+            <section class="production-grid" aria-label="Sản lượng">
+                @foreach (var card in ProductionCards(model))
+                {
+                    <MetricCard Label="@card.Label" Value="@card.Value.ToString("N0", CultureInfo.CurrentCulture)"
+                                Icon="@card.Icon" Color="@ProductionColor(card.Kind)" />
+                }
+            </section>
+
+            @* Trend và Pareto là read model đã aggregate tại query service; link cung cấp drill-down theo nghiệp vụ. *@
+            <section class="analytics-grid">
+                <MudPaper Class="dashboard-panel trend-panel" Elevation="0">
+                    <div class="panel-heading">
+                        <div><MudText Typo="Typo.h6">Xu hướng A / P / Q / OEE</MudText><MudText Typo="Typo.caption">Theo ngày · @model.TimeZoneId</MudText></div>
+                        <MudButton Href="/reports/daily-oee"
+                                   Size="Size.Small"
+                                   Variant="Variant.Text" EndIcon="@Icons.Material.Filled.ArrowForward">Chi tiết</MudButton>
+                    </div>
+                    @if (model.Trend.Count == 0)
+                    {
+                        <EmptyState Title="Chưa có dữ liệu xu hướng" />
+                    }
+                    else
+                    {
+                        <MudChart T="double" ChartType="ChartType.Line" ChartSeries="@trendSeries.ToList()"
+                                  Width="100%" Height="300px" />
+                        <div class="trend-range"><span>@model.Trend.First().Date.ToString("dd/MM", CultureInfo.CurrentCulture)</span><span>@model.Trend.Last().Date.ToString("dd/MM", CultureInfo.CurrentCulture)</span></div>
+                    }
+                </MudPaper>
+
+                <MudPaper Class="dashboard-panel loss-panel" Elevation="0">
+                    <div class="panel-heading">
+                        <div><MudText Typo="Typo.h6">Pareto tổn thất</MudText><MudText Typo="Typo.caption">Top lý do dừng theo số phút</MudText></div>
+                    </div>
+                    @if (model.Losses.Count == 0)
+                    {
+                        <EmptyState Title="Không có downtime trong kỳ" />
+                    }
+                    else
+                    {
+                        <ol class="loss-list">
+                            @foreach (var loss in model.Losses)
+                            {
+                                <li>
+                                    <a href="/reports/downtime-events?search=@Uri.EscapeDataString(loss.ReasonCode)">
+                                        <span class="loss-rank">@(model.Losses.ToList().IndexOf(loss) + 1)</span>
+                                        <span class="loss-name"><strong>@loss.Reason</strong><small>@loss.ReasonCode · @loss.EventCount sự kiện</small></span>
+                                        <span class="loss-value">@loss.Minutes.ToString("N1", CultureInfo.CurrentCulture) phút</span>
+                                    </a>
+                                    <MudProgressLinear Value="@((double)(loss.Percentage * 100))"
+                                                       Color="Color.Error" Rounded="true" />
+                                </li>
+                            }
+                        </ol>
+                    }
+                </MudPaper>
+            </section>
+        }
+
+    }
+</div>

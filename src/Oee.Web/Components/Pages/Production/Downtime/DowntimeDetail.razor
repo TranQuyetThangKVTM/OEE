@@ -1,0 +1,15 @@
+@namespace Oee.Web.Components.Pages.Production
+@page "/production/downtime/new"
+@page "/production/downtime/{Id:guid}"
+@attribute [Authorize]
+@inject IDialogService DialogService
+@inject NavigationManager Navigation
+
+<PageTitle>Sự kiện dừng máy</PageTitle>
+<MudPaper Elevation="0" Outlined="true" Class="pa-4">
+    <MudStack Spacing="2">
+        <MudText Typo="Typo.h6">Sự kiện dừng máy</MudText>
+        <MudText Typo="Typo.body2">Biểu mẫu được mở trong popup.</MudText>
+        <MudButton OnClick="OpenDialogAsync" Variant="Variant.Filled" Color="Color.Primary">Mở popup</MudButton>
+    </MudStack>
+</MudPaper>

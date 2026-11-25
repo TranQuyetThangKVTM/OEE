@@ -1,0 +1,11 @@
+@implements IAsyncDisposable
+@inject Oee.Application.PlcIntegration.IOpcUiStatusService StatusService
+
+<MudTooltip Text="@StatusDetails">
+    <a href="/plc/tag-monitor" class="@($"opc-indicator opc-indicator--{ConnectionState}")"
+       aria-label="@($"OPC UA: {StatusText}. Mở giám sát tag.")" title="@StatusDetails">
+        <span class="opc-indicator__dot" aria-hidden="true"></span>
+        <span class="opc-indicator__label">OPC</span>
+        <span class="opc-indicator__state" role="status" aria-live="polite">@StatusText</span>
+    </a>
+</MudTooltip>

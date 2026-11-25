@@ -1,0 +1,132 @@
+@namespace Oee.Web.Components.Pages.Production
+@page "/downtime"
+@page "/production/downtime-capture"
+@using Oee.Application.Contracts.Modules
+@using Oee.Application.Contracts.Operations
+@attribute [Authorize]
+@inject Oee.Application.Modules.IProductionModuleQueryService Query
+@inject Oee.Application.Common.IUseCaseExecutor Commands
+@inject IDialogService DialogService
+
+@* Routes: /downtime và /production/downtime-capture, yêu cầu DowntimeWrite. Danh sách ưu tiên DR-UNKNOWN,
+   server paging/filter/sort. Bulk reclassify gửi Id + ConcurrencyToken, giữ nguyên time window và ghi audit backend. *@
+<PageTitle>Phân loại downtime</PageTitle>
+
+<PageHeader OnRefresh="ReloadAllAsync" Title="Phân loại và tái phân loại downtime"
+            Subtitle="Ưu tiên xử lý DR-UNKNOWN; thay đổi lý do giữ nguyên time window và được audit">
+    <Actions>
+        <AuthorizeAction Policy="@Capabilities.DowntimeWrite">
+<MudButton OnClick="OpenCreateDialogAsync"
+                   Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Add">
+            Ghi nhận dừng máy
+        </MudButton>
+</AuthorizeAction>
+    </Actions>
+    <Metrics>
+        <MetricCard Label="Tổng sự kiện" Value="@_totalCount.ToString("N0")" Icon="@Icons.Material.Filled.ListAlt" Color="Color.Info" />
+        <MetricCard Label="Chưa phân loại" Value="@_unknownCount.ToString("N0")" Icon="@Icons.Material.Filled.HelpOutline" Color="Color.Warning" />
+        <MetricCard Label="Tỷ lệ chưa phân loại" Value="@UnknownRate" Icon="@Icons.Material.Filled.PieChart" Color="Color.Warning" />
+        <MetricCard Label="Đang mở" Value="@_openCount.ToString("N0")" Icon="@Icons.Material.Filled.Timer" Color="Color.Error" />
+    </Metrics>
+</PageHeader>
+
+@if (!string.IsNullOrWhiteSpace(_error))
+{
+    <MudAlert Dense="true" Class="my-3"
+              Severity="Severity.Error" Variant="Variant.Outlined">@_error</MudAlert>
+}
+
+<PageFilter>
+    <MudTextField T="string" @bind-Value="_search" Label="Thiết bị, reason hoặc ghi chú"
+                  Immediate="true" DebounceInterval="500"
+                  @bind-Value:after="ApplyFiltersAsync" />
+    <MudSelect T="string" @bind-Value="_workUnitId" Label="Thiết bị"
+               Clearable="true"
+               @bind-Value:after="ApplyFiltersAsync">
+        @foreach (ProductionLookupOption workUnit in _lookups?.WorkUnits ?? [])
+        {
+            <MudSelectItem Value="@workUnit.Id.ToString()">@workUnit.Code</MudSelectItem>
+        }
+    </MudSelect>
+    <MudSelect T="string" @bind-Value="_reasonId" Label="Lý do"
+               Clearable="true"
+               @bind-Value:after="ApplyFiltersAsync">
+        @foreach (ProductionLookupOption reason in _lookups?.DowntimeReasons ?? [])
+        {
+            <MudSelectItem Value="@reason.Id.ToString()">@reason.Code · @reason.Name</MudSelectItem>
+        }
+    </MudSelect>
+    <MudCheckBox T="bool" @bind-Value="_unknownOnly" Label="Chỉ DR-UNKNOWN"
+                 @bind-Value:after="ApplyFiltersAsync" />
+    <MudCheckBox T="bool" @bind-Value="_openOnly" Label="Đang mở"
+                 @bind-Value:after="ApplyFiltersAsync" />
+    <PageDateRangeFilter @bind-FromDate="_fromDate" @bind-ToDate="_untilDate"
+                         RangeChanged="ApplyFiltersAsync" />
+</PageFilter>
+
+
+<MudPaper Class="pa-3 mb-3" Elevation="0">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="flex-wrap">
+        <MudText>Đã chọn @_selected.Count sự kiện trên trang</MudText>
+        <AuthorizeAction Policy="@Capabilities.DowntimeWrite">
+<MudButton Variant="Variant.Filled" Color="Color.Primary"
+                   Disabled="@(_selected.Count == 0)"
+                   OnClick="BulkReclassifyAsync">
+            Phân loại hàng loạt
+        </MudButton>
+</AuthorizeAction>
+    </MudStack>
+</MudPaper>
+
+@if (_initializing)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" aria-label="Đang tải bộ lọc downtime" />
+}
+else
+{
+<PageTable TItem="DowntimeListItem"
+             @ref="_table"
+             ItemsProvider="LoadAsync"
+             AriaLabel="Danh sách downtime"
+             EmptyTitle="Không có sự kiện downtime phù hợp">
+    <HeaderContent>
+        <MudTh>Chọn</MudTh>
+        <MudTh><MudTableSortLabel T="DowntimeListItem" SortLabel="start">Bắt đầu / Kết thúc</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="DowntimeListItem" SortLabel="workunit">Thiết bị</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="DowntimeListItem" SortLabel="reason">Lý do</MudTableSortLabel></MudTh>
+        <MudTh>Thời lượng</MudTh>
+        <MudTh><MudTableSortLabel T="DowntimeListItem" SortLabel="kind">Loại</MudTableSortLabel></MudTh>
+        <MudTh>Nguồn</MudTh>
+        <MudTh>Ghi chú</MudTh>
+        <MudTh>Thao tác</MudTh>
+    </HeaderContent>
+    <RowTemplate Context="item">
+        <MudTd DataLabel="Chọn">
+            <MudCheckBox T="bool" Value="@_selected.ContainsKey(item.Id)" aria-label="Chọn downtime"
+                         ValueChanged="@(value => ToggleSelection(item, value))" />
+        </MudTd>
+        <MudTd DataLabel="Bắt đầu / Kết thúc">
+            @item.StartAt.ToLocalTime().ToString("g")
+            <small class="table-subline">@(item.EndAt?.ToLocalTime().ToString("g") ?? "Đang mở")</small>
+        </MudTd>
+        <MudTd DataLabel="Thiết bị">@item.WorkUnit</MudTd>
+        <MudTd DataLabel="Lý do">
+            <StatusChip Text="@item.ReasonCode"
+                        Kind="@(item.ReasonCode == "DR-UNKNOWN"
+                            ? SemanticKind.Warning
+                            : SemanticKind.Info)" />
+            <small class="table-subline">@item.Reason</small>
+        </MudTd>
+        <MudTd DataLabel="Thời lượng">@(item.DurationMinutes?.ToString("N1") ?? "Đang tăng") phút</MudTd>
+        <MudTd DataLabel="Loại">@item.Kind</MudTd>
+        <MudTd DataLabel="Nguồn">@item.Source</MudTd>
+        <MudTd DataLabel="Ghi chú">@item.Note</MudTd>
+        <MudTd DataLabel="Thao tác">
+            <RowActionMenu Label="@($"Thao tác downtime {item.WorkUnit}")">
+                <RowAction OnClick="@(() => OpenDetailDialogAsync(item.Id))" Label="Chi tiết downtime"
+                           Icon="@Icons.Material.Filled.Visibility" />
+            </RowActionMenu>
+        </MudTd>
+    </RowTemplate>
+</PageTable>
+}

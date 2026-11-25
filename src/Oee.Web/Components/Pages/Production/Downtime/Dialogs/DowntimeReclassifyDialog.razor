@@ -1,0 +1,24 @@
+@namespace Oee.Web.Components.Pages.Production
+@using Oee.Application.Contracts.Modules
+@inject Oee.Application.Common.IUseCaseExecutor Commands
+@inject Microsoft.AspNetCore.Authorization.IAuthorizationService Authorization
+@inject Microsoft.AspNetCore.Components.Authorization.AuthenticationStateProvider Authentication
+
+<MudDialog>
+    <TitleContent><MudText Typo="Typo.h6">Tái phân loại downtime</MudText></TitleContent>
+    <DialogContent>
+        <MudStack Spacing="3" Class="py-2">
+            <MudAlert Severity="Severity.Info">Đổi lý do cho @Items.Count sự kiện. Thời gian bắt đầu/kết thúc được giữ nguyên.</MudAlert>
+            @if (!string.IsNullOrWhiteSpace(_error)) { <MudAlert Severity="Severity.Error" Variant="Variant.Outlined">@_error</MudAlert> }
+            <MudSelect T="Guid?" @bind-Value="_reasonId" Label="Lý do mới" Required="true" Disabled="_saving">
+                @foreach (var reason in Reasons) { <MudSelectItem T="Guid?" Value="@((Guid?)reason.Id)">@reason.Code · @reason.Name</MudSelectItem> }
+            </MudSelect>
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Disabled="_saving">Hủy</MudButton>
+        <AuthorizeAction Policy="@Capabilities.DowntimeWrite">
+            <MudButton OnClick="SaveAsync" Disabled="@(_saving || !_reasonId.HasValue || Items.Count == 0)" Variant="Variant.Filled" Color="Color.Primary">Tái phân loại</MudButton>
+        </AuthorizeAction>
+    </DialogActions>
+</MudDialog>

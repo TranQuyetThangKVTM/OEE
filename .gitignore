@@ -1,0 +1,45 @@
+**/bin/
+**/obj/
+.vs/
+.idea/
+*.user
+*.suo
+TestResults/
+coverage/
+artifacts/
+**/node_modules/
+**/App_Data/
+
+# Local configuration and secrets
+appsettings.Local.json
+appsettings.*.Local.json
+**/appsettings.Development.json
+*.pfx
+*.p12
+*.key
+*.cer
+
+# Real reference data must never be committed.
+docs/reference/*.sql
+docs/reference/**/*.sql
+docs/reference/**/data/**
+
+# Commit only deliberately sanitized schema/sample artifacts.
+!docs/reference/**/*.clean.sql
+!docs/reference/**/*.schema.sql
+
+# Generated and private files
+**/artifacts/
+/tmp/
+/work/
+**/pki/
+**/logs/
+**/.env
+**/.env.*
+**/secrets.json
+*.pem
+*.bak
+*.mdf
+*.ldf
+/output/pdf/
+/docs/reference/

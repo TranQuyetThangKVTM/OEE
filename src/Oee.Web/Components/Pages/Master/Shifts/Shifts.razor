@@ -1,0 +1,95 @@
+@namespace Oee.Web.Components.Pages.Master
+@page "/master/shifts"
+@using Oee.Application.Contracts.Modules
+@using Oee.Application.Contracts.Operations
+@attribute [Authorize]
+@inject Oee.Application.Modules.IMasterDataQueryService Query
+@inject Oee.Application.Common.IUseCaseExecutor Commands
+@inject IDialogService DialogService
+
+@* Trang cấu hình ca theo Site. StartTime/EndTime là giờ địa phương dạng TimeOnly trong Domain;
+   EndTime nhỏ hơn StartTime biểu diễn ca đi qua nửa đêm, không phải khoảng thời gian âm.
+   UI gọi Application Service, không truy cập DbContext hoặc SQL trực tiếp. *@
+<PageTitle>Ca làm việc</PageTitle>
+
+<PageHeader OnRefresh="ReloadAsync" Title="Ca làm việc"
+            Subtitle="Ca được cấu hình theo nhà máy => End < Start biểu diễn ca qua nửa đêm">
+    <Actions>
+            <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Add"
+                       OnClick="OpenCreateDialogAsync">
+                Thêm ca
+            </MudButton>
+    </Actions>
+    <Metrics><MetricCard Label="Ca làm việc" Value="@_totalCount.ToString("N0")" Icon="@Icons.Material.Filled.Schedule" Color="Color.Info" /></Metrics>
+</PageHeader>
+
+@if (!string.IsNullOrWhiteSpace(_error))
+{
+    <MudAlert Dense="true" Class="my-3"
+              Severity="Severity.Error" Variant="Variant.Outlined">@_error</MudAlert>
+}
+
+<PageFilter>
+    <MudTextField T="string" @bind-Value="_search" Label="Mã hoặc tên ca"
+                  Immediate="true" DebounceInterval="500"
+                  @bind-Value:after="ApplyFiltersAsync" />
+    <MudSelect T="string" @bind-Value="_siteId" Label="Nhà máy"
+               Clearable="true"
+               @bind-Value:after="ApplyFiltersAsync">
+        @foreach (MasterLookupOption option in _lookups?.Sites ?? [])
+        {
+            <MudSelectItem Value="@option.Id.ToString()">@option.Code · @option.Name</MudSelectItem>
+        }
+    </MudSelect>
+    <MudSelect T="string" @bind-Value="_status" Label="Trạng thái"
+               Clearable="true"
+               @bind-Value:after="ApplyFiltersAsync">
+        @foreach (MasterLookupOption option in _lookups?.Statuses ?? [])
+        {
+            <MudSelectItem Value="@option.Code">@option.Name</MudSelectItem>
+        }
+    </MudSelect>
+</PageFilter>
+
+
+<PageTable TItem="ShiftListItem"
+             @ref="_table"
+             ItemsProvider="LoadAsync"
+             AriaLabel="Danh sách ca làm việc"
+             EmptyTitle="Không có ca phù hợp">
+    <HeaderContent>
+        <MudTh><MudTableSortLabel T="ShiftListItem" SortLabel="code">Mã</MudTableSortLabel></MudTh>
+        <MudTh>Tên ca</MudTh>
+        <MudTh><MudTableSortLabel T="ShiftListItem" SortLabel="site">Nhà máy</MudTableSortLabel></MudTh>
+        <MudTh>Loại ca</MudTh>
+        <MudTh><MudTableSortLabel T="ShiftListItem" SortLabel="start">Bắt đầu</MudTableSortLabel></MudTh>
+        <MudTh>Kết thúc</MudTh>
+        <MudTh>Trạng thái</MudTh>
+        <MudTh>Thao tác</MudTh>
+    </HeaderContent>
+    <RowTemplate Context="item">
+        <MudTd DataLabel="Mã"><strong>@item.Code</strong></MudTd>
+        <MudTd DataLabel="Tên ca">@item.Name</MudTd>
+        <MudTd DataLabel="Nhà máy">@item.Site</MudTd>
+        <MudTd DataLabel="Loại ca">
+            <StatusChip Text="@(item.CrossesMidnight ? "Qua nửa đêm" : "Trong ngày")"
+                          Kind="@(item.CrossesMidnight ? SemanticKind.Info : SemanticKind.Neutral)" />
+        </MudTd>
+        <MudTd DataLabel="Bắt đầu">@item.StartTime.ToString("HH:mm")</MudTd>
+        <MudTd DataLabel="Kết thúc">@item.EndTime.ToString("HH:mm")</MudTd>
+        <MudTd DataLabel="Trạng thái">
+            <StatusChip Text="@item.Status"
+                        Kind="@(item.Status == "Active" ? SemanticKind.Success : SemanticKind.Warning)" />
+        </MudTd>
+        <MudTd DataLabel="Thao tác">
+            <AuthorizeAction Policy="@Capabilities.MasterDataWrite">
+                <MasterEditActions Kind="MasterEditKind.Shift" Id="item.Id" Status="@item.Status"
+                                   EditLabel="Cập nhật ca làm việc" ActionLabel="@($"Thao tác {item.Code}")" OnChanged="ReloadAsync">
+                    <RowAction Label="Xóa ca"
+                                   Icon="@Icons.Material.Filled.Delete" Color="Color.Error"
+                                   OnClick="@(() => DeleteAsync(item))" />
+                </MasterEditActions>
+            </AuthorizeAction>
+        </MudTd>
+    </RowTemplate>
+</PageTable>

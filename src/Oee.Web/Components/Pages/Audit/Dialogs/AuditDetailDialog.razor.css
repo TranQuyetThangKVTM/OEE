@@ -1,0 +1,18 @@
+/* Giới hạn vùng JSON kỹ thuật để nội dung dài không làm dialog vượt màn hình. */
+.audit-raw-json {
+    max-height: 22rem;
+    overflow: auto;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    padding: 1rem;
+    border-radius: var(--mud-default-borderradius);
+    background: var(--mud-palette-background-grey);
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+
+/* Snapshot của thao tác xóa được đánh dấu semantic error nhưng vẫn giữ nguyên text để truy vết. */
+.audit-deleted-value {
+    color: var(--mud-palette-error);
+    text-decoration: line-through;
+    overflow-wrap: anywhere;
+}

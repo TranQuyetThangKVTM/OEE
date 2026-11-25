@@ -1,0 +1,6 @@
+@namespace Oee.Web.Components.Pages.Reports
+@page "/reports/device-detail"
+@using Oee.Application.Contracts.Reporting
+@attribute [Authorize]
+@* Route drill-down thiết bị. WorkUnitId từ query string khởi tạo đúng bộ lọc trong workspace dùng chung. *@
+<ReportWorkspace Kind="ReportKind.DeviceOee" Title="Chi tiết OEE theo thiết bị" InitialWorkUnitId="WorkUnitId" />

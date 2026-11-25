@@ -1,0 +1,6 @@
+@implements IAsyncDisposable
+@* Đồng hồ AppBar cập nhật mỗi giây và hiển thị tên/progress của ba ca mặc định.
+   TimeZone là Parameter; component chỉ trình bày thời gian, không tạo ProductionPlan hay ghi SQL. *@
+<div class="shift-indicator" role="timer" aria-label="Thời gian và ca hiện tại"><span class="online-dot"></span><strong>@now.ToString("HH:mm:ss",CultureInfo.InvariantCulture)</strong><span class="shift-name">@ShiftName</span><MudProgressLinear Value="@Progress" aria-label="Tiến độ ca"
+                   Size="Size.Small"
+                   Color="Color.Secondary" Rounded="true" /></div>

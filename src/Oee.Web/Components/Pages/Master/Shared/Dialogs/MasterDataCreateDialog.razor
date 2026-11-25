@@ -1,0 +1,270 @@
+@namespace Oee.Web.Components.Pages.Master
+@using Oee.Application.Contracts.Modules
+@using Oee.Application.Contracts.Operations
+@inject Oee.Application.Modules.IMasterDataQueryService Query
+@inject Oee.Application.Common.IUseCaseExecutor Commands
+@inject IAuthorizationService Authorization
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ISnackbar Snackbar
+
+@* Dialog create dùng chung cho Product/Standard/Shift/Reason và cây Organization. Kind quyết định form/DTO.
+   Lookup chỉ hiển thị Active; MudForm validation là UX, Application/DB vẫn kiểm tra code unique, parent,
+   timezone, hiệu lực và authorization. Dialog chỉ đóng Ok sau khi SaveChanges SQL thành công. *@
+<MudDialog Class="master-create-dialog">
+    <TitleContent><MudText Typo="Typo.h6">@Title</MudText></TitleContent>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_valid">
+            @if (!string.IsNullOrWhiteSpace(_error))
+            {
+                <MudAlert Class="mb-3"
+                          Severity="Severity.Error">@_error</MudAlert>
+            }
+            @if (_loading)
+            {
+                <MudStack AlignItems="AlignItems.Center" Class="pa-6"><MudProgressCircular Indeterminate="true" /></MudStack>
+            }
+            else
+            {
+                @if (CopyFrom.HasValue && !_loadFailed)
+                {
+                    <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
+                        Sao chép từ @_copySourceLabel.
+                        @(Kind == MasterCreateKind.Product
+                            ? "Nhập mã SKU mới; các thông tin còn lại được giữ nguyên và có thể chỉnh sửa."
+                            : "Chọn thiết bị hoặc SKU đích; tốc độ, đơn vị và khoảng hiệu lực được giữ nguyên và có thể chỉnh sửa.")
+                    </MudAlert>
+                }
+                <MudGrid>
+                    @switch (Kind)
+                    {
+                        case MasterCreateKind.Product:
+                            <MudItem xs="12">
+                                <MudStack Spacing="2">
+                                    <MudTextField T="string" Label="Mã sản phẩm" @bind-Value="_code"
+                                                  Required="true" MaxLength="32" />
+                                    <MudTextField T="string" Label="Tên sản phẩm" @bind-Value="_name"
+                                                  Required="true" MaxLength="200" />
+                                    <MudTextField T="string" Label="Đơn vị mặc định" @bind-Value="_uom"
+                                                  Required="true" MaxLength="16" />
+                                    <MudTextField T="string" Label="Mô tả" @bind-Value="_description"
+                                                  Lines="3" MaxLength="500" />
+                                    @if (CopyFrom.HasValue)
+                                    {
+                                        <MudSelect T="string" Label="Trạng thái" @bind-Value="_status" Required="true">
+                                            @foreach (var option in _lookups?.Statuses ?? [])
+                                            {
+                                                <MudSelectItem T="string" Value="@option.Code">@option.Name</MudSelectItem>
+                                            }
+                                        </MudSelect>
+                                    }
+                                </MudStack>
+                            </MudItem>
+                            break;
+                        case MasterCreateKind.WorkUnitStandard:
+                            <MudItem xs="12">
+                                <MudStack Spacing="2">
+                                    <MudSelect T="Guid?" Label="Thiết bị / dây chuyền" @bind-Value="_parentId"
+                                               Required="true">
+                                        @foreach (var option in Active(_lookups?.WorkUnits))
+                                        {
+                                            <MudSelectItem T="Guid?" Value="@((Guid?)option.Id)">@option.Code · @option.Name</MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                    <MudSelect T="Guid?" Label="Sản phẩm (SKU)" @bind-Value="_relatedId"
+                                               Required="true">
+                                        @foreach (var option in Active(_lookups?.Products))
+                                        {
+                                            <MudSelectItem T="Guid?" Value="@((Guid?)option.Id)">@option.Code · @option.Name</MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                    <MudGrid Spacing="2">
+                                        <MudItem xs="12" sm="6">
+                                            <MudNumericField T="decimal" Label="Tốc độ chuẩn / phút" @bind-Value="_speed"
+                                                             Min="0.0001m" Step="1m" Required="true" />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="6">
+                                            <MudTextField T="string" Label="Đơn vị" @bind-Value="_uom"
+                                                          Required="true" MaxLength="16" />
+                                        </MudItem>
+                                    </MudGrid>
+                                    <MudDatePicker Label="Hiệu lực từ ngày" @bind-Date="_effectiveFrom"
+                                                   Required="true" />
+                                    @if (CopyFrom.HasValue)
+                                    {
+                                        <MudDatePicker Label="Hiệu lực đến ngày (tùy chọn)" @bind-Date="_effectiveTo" Clearable="true" />
+                                    }
+                                    <MudTextField T="string" Label="Người phê duyệt" @bind-Value="_approvedBy"
+                                                  MaxLength="120" />
+                                </MudStack>
+                            </MudItem>
+                            break;
+                        case MasterCreateKind.Shift:
+                            <MudItem xs="12">
+                                <MudStack Spacing="2">
+                                    <MudSelect T="Guid?" Label="Nhà máy" @bind-Value="_parentId"
+                                               Required="true">
+                                        @foreach (var option in Active(_lookups?.Sites))
+                                        {
+                                            <MudSelectItem T="Guid?" Value="@((Guid?)option.Id)">@option.Code · @option.Name</MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                    <MudTextField T="string" Label="Mã ca" @bind-Value="_code"
+                                                  Required="true" MaxLength="32" />
+                                    <MudTextField T="string" Label="Tên ca" @bind-Value="_name"
+                                                  Required="true" MaxLength="100" />
+                                    <MudSelect T="string" Label="Loại ca" Value="_shiftType"
+                                               ValueChanged="ApplyShiftType">
+                                        <MudSelectItem T="string" Value="@("Morning")">Ca sáng</MudSelectItem>
+                                        <MudSelectItem T="string" Value="@("Afternoon")">Ca chiều</MudSelectItem>
+                                        <MudSelectItem T="string" Value="@("Night")">Ca đêm</MudSelectItem>
+                                        <MudSelectItem T="string" Value="@("Custom")">Tùy chỉnh</MudSelectItem>
+                                    </MudSelect>
+                                    <MudGrid Spacing="2">
+                                        <MudItem xs="12" sm="6">
+                                            <MudTimePicker Label="Bắt đầu" @bind-Time="_startTime"
+                                                           Required="true" />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="6">
+                                            <MudTimePicker Label="Kết thúc" @bind-Time="_endTime"
+                                                           Required="true" />
+                                        </MudItem>
+                                    </MudGrid>
+                                    @if (_startTime.HasValue && _endTime.HasValue && _endTime < _startTime)
+                                    {
+                                        <MudAlert Dense="true"
+                                                  Severity="Severity.Info">Ca kết thúc vào ngày hôm sau.</MudAlert>
+                                    }
+                                </MudStack>
+                            </MudItem>
+                            break;
+                        case MasterCreateKind.DowntimeReason:
+                            <MudItem xs="12">
+                                <MudStack Spacing="2">
+                                    <MudTextField T="string" Label="Mã lý do" @bind-Value="_code"
+                                                  Required="true" MaxLength="32" />
+                                    <MudTextField T="string" Label="Tên lý do" @bind-Value="_name"
+                                                  Required="true" MaxLength="200" />
+                                    <MudSelect T="string" Label="Phân loại" @bind-Value="_category"
+                                               Required="true">
+                                        @foreach (var option in _lookups?.DowntimeCategories ?? [])
+                                        {
+                                            <MudSelectItem T="string" Value="@option.Code">@option.Name</MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                    <MudSelect T="string" Label="Nhóm chi tiết" @bind-Value="_reasonKind"
+                                               Required="true">
+                                        @foreach (var option in _lookups?.DowntimeKinds ?? [])
+                                        {
+                                            <MudSelectItem T="string" Value="@option.Code">@option.Name</MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                    <MudTextField T="string" Label="Mô tả" @bind-Value="_description"
+                                                  Lines="3" MaxLength="500" />
+                                </MudStack>
+                            </MudItem>
+                            break;
+                        case MasterCreateKind.WorkUnit:
+                            <MudItem xs="12">
+                                <MudStack Spacing="2">
+                                    <MudSelect T="Guid?" Label="Dây chuyền / Work Center" @bind-Value="_parentId"
+                                               Required="true" Disabled="LockParent">
+                                        @foreach (var option in Active(_lookups?.WorkCenters))
+                                        {
+                                            <MudSelectItem T="Guid?" Value="@((Guid?)option.Id)">@option.Code · @option.Name</MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                    <MudTextField T="string" Label="Mã thiết bị" @bind-Value="_code"
+                                                  Required="true" MaxLength="32" />
+                                    <MudTextField T="string" Label="Tên thiết bị" @bind-Value="_name"
+                                                  Required="true" MaxLength="200" />
+                                </MudStack>
+                            </MudItem>
+                            break;
+                        case MasterCreateKind.WorkCenter:
+                            <MudItem xs="12">
+                                <MudStack Spacing="2">
+                                    <MudAutocomplete T="MasterLookupOption" @bind-Value="_areaOption" Label="Khu vực sản xuất" SearchFunc="SearchAreasAsync" ToStringFunc="AreaText" HelperText="Tìm theo mã, tên khu vực sản xuất hoặc nhà máy"
+                                                     Required="true" Clearable="@(!LockParent)" MaxItems="20" Disabled="LockParent" />
+                                    <MudTextField T="string" Label="Mã dây chuyền" @bind-Value="_code"
+                                                  Required="true" MaxLength="32" />
+                                    <MudTextField T="string" Label="Tên dây chuyền" @bind-Value="_name"
+                                                  Required="true" MaxLength="200" />
+                                </MudStack>
+                            </MudItem>
+                            break;
+                        case MasterCreateKind.Area:
+                            <MudItem xs="12">
+                                <MudStack Spacing="2">
+                                    <MudSelect T="Guid?" Label="Nhà máy" @bind-Value="_parentId"
+                                               Required="true" Disabled="LockParent">
+                                        @foreach (var option in Active(_lookups?.Sites))
+                                        {
+                                            <MudSelectItem T="Guid?" Value="@((Guid?)option.Id)">@option.Code · @option.Name</MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                    <MudTextField T="string" Label="Mã khu vực sản xuất" @bind-Value="_code"
+                                                  Required="true" MaxLength="32" />
+                                    <MudTextField T="string" Label="Tên khu vực sản xuất" @bind-Value="_name"
+                                                  Required="true" MaxLength="200" />
+                                </MudStack>
+                            </MudItem>
+                            break;
+                        case MasterCreateKind.Enterprise:
+                            <MudItem xs="12">
+                                <MudStack Spacing="2">
+                                    <MudTextField T="string" Label="Mã doanh nghiệp" @bind-Value="_code"
+                                                  Required="true" MaxLength="32" />
+                                    <MudTextField T="string" Label="Tên doanh nghiệp" @bind-Value="_name"
+                                                  Required="true" MaxLength="200" />
+                                    <MudTextField T="string" Label="Mô tả" @bind-Value="_description"
+                                                  Lines="3" MaxLength="500" />
+                                </MudStack>
+                            </MudItem>
+                            break;
+                        case MasterCreateKind.Site:
+                            <MudItem xs="12">
+                                <MudStack Spacing="2">
+                                    <MudSelect T="Guid?" Label="Doanh nghiệp" @bind-Value="_parentId"
+                                               Required="true" Disabled="LockParent">
+                                        @foreach (var option in Active(_lookups?.Enterprises))
+                                        {
+                                            <MudSelectItem T="Guid?" Value="@((Guid?)option.Id)">@option.Code · @option.Name</MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                    <MudTextField T="string" Label="Mã nhà máy" @bind-Value="_code"
+                                                  Required="true" MaxLength="32" />
+                                    <MudTextField T="string" Label="Tên nhà máy" @bind-Value="_name"
+                                                  Required="true" MaxLength="200" />
+                                    <MudAutocomplete T="string" Label="Múi giờ (Windows ID)" @bind-Value="_timeZoneId" SearchFunc="SearchTimeZonesAsync"
+                                                     Required="true" Clearable="true" MaxItems="20" />
+                                </MudStack>
+                            </MudItem>
+                            break;
+                    }
+                    @if (Kind is MasterCreateKind.Site or MasterCreateKind.Area or MasterCreateKind.WorkCenter or MasterCreateKind.WorkUnit)
+                    {
+                        <MudItem xs="12">
+                            <MudTextField T="string" Label="Mô tả" @bind-Value="_description"
+                                          Lines="3"
+                                          MaxLength="500" />
+                        </MudItem>
+                    }
+                </MudGrid>
+            }
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Disabled="_saving"
+                   OnClick="Cancel">Hủy</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
+                   Disabled="@(_loading || _loadFailed || _saving || !_valid)"
+                   OnClick="SaveAsync">
+            @if (_saving)
+            {
+                <MudProgressCircular Size="Size.Small" Class="mr-2"
+                                     Indeterminate="true" />
+            }
+            Lưu
+        </MudButton>
+    </DialogActions>
+</MudDialog>

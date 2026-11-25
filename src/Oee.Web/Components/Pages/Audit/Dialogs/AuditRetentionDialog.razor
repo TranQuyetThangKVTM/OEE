@@ -1,0 +1,43 @@
+@namespace Oee.Web.Components.Pages
+@using Oee.Application.Contracts.Audit
+@inject Oee.Application.Common.IUseCaseExecutor MaintenanceService
+@inject ISnackbar Snackbar
+
+@* Dialog retention thực hiện preview trước rồi mới cho xác nhận. Cutoff/tháng được tính ở backend,
+   không tin giá trị client. Service xóa theo batch chỉ các log cũ hơn cutoff và lưu AuditRetentionRun
+   riêng để dấu vết quản trị không tự bị xóa cùng AuditLog. *@
+<MudDialog>
+    <DialogContent>
+        @if (_loading)
+        {
+            <MudStack AlignItems="AlignItems.Center" Class="pa-5"><MudProgressCircular Indeterminate="true" /></MudStack>
+        }
+        else if (!string.IsNullOrWhiteSpace(_error))
+        {
+            <MudAlert Severity="Severity.Error">@_error</MudAlert>
+        }
+        else if (_preview is not null)
+        {
+            <MudAlert Severity="Severity.Warning">
+                Chỉ xóa audit cũ hơn <strong>@_preview.CutoffUtc.ToString("dd/MM/yyyy HH:mm 'UTC'")</strong>
+                theo cấu hình @_preview.RetentionMonths tháng. Audit mới hơn hoặc đúng mốc không bị xóa.
+            </MudAlert>
+            <MudList T="string"
+                     Dense="true">
+                <MudListItem T="string">Số bản ghi dự kiến: @_preview.CandidateCount.ToString("N0")</MudListItem>
+                <MudListItem T="string">Lịch sử lần dọn được lưu riêng trong AuditRetentionRuns.</MudListItem>
+            </MudList>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton Disabled="_saving"
+                   OnClick="Cancel">Hủy</MudButton>
+        <MudButton Color="Color.Error" Variant="Variant.Filled"
+                   Disabled="@(_loading || _saving || _preview is null)"
+                   OnClick="RunAsync">
+            @if (_saving) { <MudProgressCircular Size="Size.Small" Class="me-2"
+                                 Indeterminate="true" /> }
+            Xác nhận dọn log
+        </MudButton>
+    </DialogActions>
+</MudDialog>

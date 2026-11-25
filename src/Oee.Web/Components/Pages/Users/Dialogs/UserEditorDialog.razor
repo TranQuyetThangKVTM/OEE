@@ -1,0 +1,84 @@
+@namespace Oee.Web.Components.Pages
+@using System.ComponentModel.DataAnnotations
+@using Oee.Application.Contracts.Identity
+@inject Oee.Application.Common.IUseCaseExecutor UsersService
+@inject ISnackbar Snackbar
+
+@* Dialog dùng chung cho Create/Update Identity user. Role được tải từ server; username chỉ nhập khi Create.
+   Dữ liệu đi theo Request DTO tới IUserManagementService/UserManager/RoleManager, không inject DbContext.
+   Service bảo đảm role assignment nhất quán, chống tự nâng quyền/Admin cuối cùng và audit không chứa password. *@
+<MudDialog>
+    <DialogContent>
+        @if (_loading)
+        {
+            <MudStack AlignItems="AlignItems.Center" Class="pa-6">
+                <MudProgressCircular Color="Color.Primary"
+                                     Indeterminate="true" />
+                <MudText>Đang tải tài khoản…</MudText>
+            </MudStack>
+        }
+        else
+        {
+            <MudForm @ref="_mudForm" @bind-IsValid="_valid">
+                <MudGrid>
+                    <MudItem xs="12">
+                        <MudTextField T="string" @bind-Value="_form.UserName" Label="Tài khoản (username)"
+                                      Required="true" RequiredError="Tài khoản là bắt buộc." Disabled="@UserId.HasValue" MaxLength="256" Immediate="true" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField T="string" @bind-Value="_form.DisplayName" Label="Tên hiển thị"
+                                      Required="true" RequiredError="Tên hiển thị là bắt buộc." MaxLength="120" Immediate="true" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField T="string" @bind-Value="_form.Email" Label="Email"
+                                      InputType="InputType.Email" Validation="@(new Func<string?, string?>(ValidateEmail))" MaxLength="256" />
+                    </MudItem>
+                    @if (!UserId.HasValue)
+                    {
+                        <MudItem xs="12">
+                            <MudTextField T="string" @bind-Value="_form.Password" Label="Mật khẩu ban đầu"
+                                          InputType="InputType.Password" Required="true" RequiredError="Mật khẩu ban đầu là bắt buộc." MaxLength="128" />
+                            <MudText Typo="Typo.caption">@PasswordPolicyText</MudText>
+                        </MudItem>
+                    }
+                    <MudItem xs="12">
+                        <MudField Label="Vai trò"
+                                  Variant="Variant.Outlined">
+                            <MudStack Row="true" Wrap="Wrap.Wrap" Spacing="1" Class="pa-2">
+                                @foreach (var role in _roles)
+                                {
+                                    <MudCheckBox T="bool" Label="@role.Name" Value="@_form.Roles.Contains(role.Name)"
+                                                 Disabled="@(_saving || _editingSelf)"
+                                                 ValueChanged="selected => SetRole(role.Name, selected)" />
+                                }
+                            </MudStack>
+                        </MudField>
+                        @if (_form.Roles.Count == 0)
+                        {
+                            <MudText Color="Color.Error" Typo="Typo.caption">Phải chọn ít nhất một vai trò.</MudText>
+                        }
+                    </MudItem>
+                </MudGrid>
+                @if (!string.IsNullOrWhiteSpace(_error))
+                {
+                    <MudAlert Class="mt-3"
+                              Severity="Severity.Error">@_error</MudAlert>
+                }
+            </MudForm>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton Disabled="_saving"
+                   OnClick="Cancel">Hủy</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled"
+                   Disabled="@(_loading || _saving || !_valid || _form.Roles.Count == 0)"
+                   OnClick="SaveAsync">
+            @if (_saving)
+            {
+                <MudProgressCircular Size="Size.Small" Class="me-2"
+                                     Indeterminate="true" />
+            }
+            @(UserId.HasValue ? "Lưu" : "Tạo tài khoản")
+        </MudButton>
+    </DialogActions>
+</MudDialog>

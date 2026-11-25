@@ -1,0 +1,28 @@
+@inherits LayoutComponentBase
+
+@* Layout chính của page đã đăng nhập: theme/providers → AppBar/Drawer → chỉ báo OPC trong AppBar → page body. *@
+<MudThemeProvider Theme="Oee.Web.Theming.OeeTheme.Industrial" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<MudLayout Class="oee-workspace">
+    <MudLink Href="#oee-main-content" Class="oee-skip-link">Đến nội dung chính</MudLink>
+    <AppHeader DrawerToggleRequested="ToggleDrawer" />
+
+    <MudDrawer @bind-Open="_drawerOpen"
+               Elevation="1" Class="oee-drawer"
+               Variant="DrawerVariant.Responsive">
+        <AppNavigation />
+    </MudDrawer>
+
+    <MudMainContent>
+        <WorkspaceTabs State="_tabs" />
+        <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="main-container" id="oee-main-content" tabindex="-1">
+            <CascadingValue Value="_tabs" IsFixed="true">
+                @Body
+            </CascadingValue>
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>
+

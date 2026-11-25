@@ -1,0 +1,29 @@
+@namespace Oee.Web.Components.Shared
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Spacing="0" Class="table-grouping-toolbar"
+          role="group" aria-label="Nhóm các dòng trên trang hiện tại">
+    <MudTooltip Text="Chỉ nhóm các dòng trên trang hiện tại." Class="table-grouping-help">
+    <MudSelect T="TableGroupingMode" Label="Nhóm theo" Value="Value" ValueChanged="ValueChanged"
+               Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true" Disabled="Disabled" Class="table-grouping-select">
+        <MudSelectItem Value="TableGroupingMode.None">Không nhóm</MudSelectItem>
+        <MudSelectItem Value="TableGroupingMode.Machine">Theo máy</MudSelectItem>
+        @if (AllowProduct) { <MudSelectItem Value="TableGroupingMode.Product">Theo SKU</MudSelectItem> }
+    </MudSelect>
+    </MudTooltip>
+    @if (Value != TableGroupingMode.None)
+    {
+        @if (ExpandAll.HasDelegate)
+        { <MudIconButton Icon="@Icons.Material.Filled.UnfoldMore" Size="Size.Small" OnClick="ExpandAll" Disabled="Disabled" title="Mở tất cả nhóm" aria-label="Mở tất cả nhóm" /> }
+        @if (CollapseAll.HasDelegate)
+        { <MudIconButton Icon="@Icons.Material.Filled.UnfoldLess" Size="Size.Small" OnClick="CollapseAll" Disabled="Disabled" title="Thu gọn tất cả nhóm" aria-label="Thu gọn tất cả nhóm" /> }
+    }
+</MudStack>
+
+@code {
+    [Parameter] public TableGroupingMode Value { get; set; }
+    [Parameter] public EventCallback<TableGroupingMode> ValueChanged { get; set; }
+    [Parameter] public bool AllowProduct { get; set; } = true;
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public EventCallback ExpandAll { get; set; }
+    [Parameter] public EventCallback CollapseAll { get; set; }
+}

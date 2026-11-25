@@ -1,0 +1,52 @@
+@namespace Oee.Web.Components.Pages.Production
+@inject Oee.Application.Modules.IProductionModuleQueryService Query
+@inject Oee.Application.Common.IUseCaseExecutor Commands
+@inject IDialogService DialogService
+@inject Microsoft.AspNetCore.Authorization.IAuthorizationService Authorization
+@inject Microsoft.AspNetCore.Components.Authorization.AuthenticationStateProvider Authentication
+
+<MudDialog>
+    <TitleContent><MudText Typo="Typo.h6">@(Id == Guid.Empty ? "Ghi nhận dừng máy" : "Chi tiết sự kiện dừng máy")</MudText></TitleContent>
+    <DialogContent>
+        @if (!string.IsNullOrWhiteSpace(error)) { <MudAlert Severity="Severity.Error" Variant="Variant.Outlined" Dense="true" Class="mb-3">@error</MudAlert> }
+        @if (loading) { <MudProgressLinear Indeterminate="true" /> }
+        else if (lookups is not null && (Id == Guid.Empty || detail is not null))
+        {
+            <MudForm @ref="_mudForm" @bind-IsValid="_valid">
+                <MudGrid Spacing="3" Class="py-2">
+                    <MudItem xs="12" sm="6"><MudSelect T="string" @bind-Value="workUnitId" Label="Thiết bị" Required="true" Disabled="@(detail is not null || !_canWrite)">
+                        @foreach (var unit in lookups.WorkUnits) { <MudSelectItem Value="@unit.Id.ToString()">@unit.Code · @unit.Name</MudSelectItem> }
+                    </MudSelect></MudItem>
+                    <MudItem xs="12" sm="6"><MudSelect T="string" @bind-Value="reasonId" Label="Lý do" Required="true" Disabled="@(!_canWrite)">
+                        @foreach (var reason in lookups.DowntimeReasons) { <MudSelectItem Value="@reason.Id.ToString()">@reason.Code · @reason.Name</MudSelectItem> }
+                    </MudSelect></MudItem>
+                    <MudItem xs="12"><LocalDateTimeField Label="Bắt đầu" @bind-Value="startLocal" Disabled="@(detail is not null || !_canWrite)" /></MudItem>
+                    <MudItem xs="12"><MudCheckBox T="bool" @bind-Value="isOpen" Label="Sự kiện đang mở" Disabled="@(detail is not null || !_canWrite)" /></MudItem>
+                    @if (!isOpen) { <MudItem xs="12"><LocalDateTimeField Label="Kết thúc" @bind-Value="endLocal" Disabled="@(detail is not null || !_canWrite)" /></MudItem> }
+                    <MudItem xs="12"><MudTextField @bind-Value="note" Label="Ghi chú" Lines="3" Disabled="@(detail is not null || !_canWrite)" /></MudItem>
+                    @if (detail is not null)
+                    {
+                        <MudItem xs="6"><MudText Typo="Typo.caption">Phân loại</MudText><MudText>@detail.Category / @detail.Kind</MudText></MudItem>
+                        <MudItem xs="6"><MudText Typo="Typo.caption">Nguồn</MudText><MudText>@detail.Source</MudText></MudItem>
+                        <MudItem xs="6"><MudText Typo="Typo.caption">Thời lượng</MudText><MudText>@(detail.DurationMinutes?.ToString("N1") ?? "Đang tăng") phút</MudText></MudItem>
+                        <MudItem xs="6"><MudText Typo="Typo.caption">Output liên kết</MudText><MudText>@(detail.ProductionOutputId?.ToString() ?? "—")</MudText></MudItem>
+                    }
+                </MudGrid>
+            </MudForm>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Disabled="_saving">Đóng</MudButton>
+        <AuthorizeAction Policy="@Capabilities.DowntimeWrite">
+            @if (!loading && lookups is not null && (Id == Guid.Empty || detail is not null))
+            {
+                @if (detail is null) { <MudButton OnClick="CreateAsync" Disabled="_saving" Variant="Variant.Filled" Color="Color.Primary">Lưu downtime</MudButton> }
+                else
+                {
+                    <MudButton OnClick="ReclassifyAsync" Disabled="@(_saving || !Guid.TryParse(reasonId, out var selectedReason) || selectedReason == detail.DowntimeReasonId)" Variant="Variant.Filled" Color="Color.Primary">Lưu lý do mới</MudButton>
+                    @if (detail.EndAt is null) { <MudButton OnClick="CloseAsync" Disabled="_saving" Variant="Variant.Outlined" Color="Color.Error">Đóng sự kiện lúc hiện tại</MudButton> }
+                }
+            }
+        </AuthorizeAction>
+    </DialogActions>
+</MudDialog>

@@ -1,0 +1,13 @@
+@* Card KPI chỉ trình bày label/value đã tính từ Application DTO; không tính công thức OEE trong component. *@
+<MudPaper role="group" aria-label="@Label"
+          Class="metric-card" Style="@AccentStyle" Elevation="0" title="@Hint">
+    <MudStack Spacing="0" Class="metric-card__content">
+        <MudText Typo="Typo.caption" Class="metric-card__label">@Label</MudText>
+        <MudText Class="metric-card__value" Typo="Typo.h6">@Value</MudText>
+        @if (!string.IsNullOrWhiteSpace(Description))
+        {
+            <MudText Typo="Typo.caption" Class="metric-card__description" title="@Description">@Description</MudText>
+        }
+    </MudStack>
+    <MudIcon Icon="@Icon" Color="@Color" Class="metric-card__icon" Size="Size.Small" aria-hidden="true" />
+</MudPaper>

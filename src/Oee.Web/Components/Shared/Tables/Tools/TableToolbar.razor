@@ -1,0 +1,13 @@
+@namespace Oee.Web.Components.Shared
+
+<MudStack Row="true" Wrap="Wrap.Wrap" AlignItems="AlignItems.Center" Justify="Justify.FlexEnd" Spacing="1"
+          Class="table-toolbar" role="group" aria-label="Tùy chọn hiển thị bảng">
+    @ChildContent
+    <TableViewTools TableId="@TableId" Title="@Title" />
+</MudStack>
+
+@code {
+    [Parameter, EditorRequired] public string TableId { get; set; } = string.Empty;
+    [Parameter] public string Title { get; set; } = "Dữ liệu bảng";
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

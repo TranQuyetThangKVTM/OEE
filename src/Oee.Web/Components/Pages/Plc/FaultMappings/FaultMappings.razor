@@ -1,0 +1,104 @@
+@namespace Oee.Web.Components.Pages.Plc
+@page "/plc/faults"
+@page "/integration/plc-fault-codes"
+@using Oee.Application.PlcIntegration
+@using Oee.Application.Contracts.Modules
+@using Oee.Application.Contracts.PlcIntegration
+@attribute [Authorize]
+@inject Oee.Application.Common.IUseCaseExecutor Plc
+@inject IDialogService DialogService
+
+@* Trang quản lý ánh xạ fault code sang DowntimeReason. Scope null nghĩa là global;
+   khi xử lý dữ liệu, mapping riêng WorkUnit được ưu tiên trước global và DR-UNKNOWN là fallback.
+   Bảng luôn paging 25 dòng ở server vì dữ liệu có thể có hàng nghìn mã lỗi. *@
+<PageTitle>Ánh xạ mã lỗi PLC</PageTitle>
+
+<PageHeader OnRefresh="ReloadAsync" Title="Ánh xạ mã lỗi PLC"
+            Subtitle="Ưu tiên WorkUnit-specific trước global; fault 0 được bỏ qua theo cấu hình thiết bị">
+    <Actions>
+        <AuthorizeAction Policy="@Capabilities.PlcManage">
+<MudButton StartIcon="@Icons.Material.Filled.UploadFile"
+                   OnClick="OpenImportAsync">
+            Import XLSX
+        </MudButton>
+</AuthorizeAction>
+        <AuthorizeAction Policy="@Capabilities.PlcManage">
+<MudButton Color="Color.Secondary" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Add"
+                   OnClick="BeginAdd">
+            Thêm
+        </MudButton>
+</AuthorizeAction>
+    </Actions>
+    <Metrics><MetricCard Label="Ánh xạ mã lỗi" Value="@_totalCount.ToString("N0")" Icon="@Icons.Material.Filled.WarningAmber" Color="Color.Info" /></Metrics>
+</PageHeader>
+
+@if (!string.IsNullOrWhiteSpace(_error))
+{
+    <MudAlert Dense="true" Class="my-3"
+              Severity="Severity.Error" Variant="Variant.Outlined">@_error</MudAlert>
+}
+
+<PageFilter>
+    <MudTextField T="string" @bind-Value="_search" Label="Mã lỗi, reason hoặc mô tả"
+                  Immediate="true" DebounceInterval="500"
+                  @bind-Value:after="ApplyFiltersAsync" />
+    <MudSelect T="string" @bind-Value="_workUnitId" Label="WorkUnit"
+               Clearable="true"
+               @bind-Value:after="ApplyFiltersAsync">
+        @foreach (PlcLookup workUnit in _lookups?.WorkUnits ?? [])
+        {
+            <MudSelectItem Value="@workUnit.Id.ToString()">@workUnit.Code — @workUnit.Name</MudSelectItem>
+        }
+    </MudSelect>
+    <MudSelect T="string" @bind-Value="_state" Label="Trạng thái"
+               Clearable="true"
+               @bind-Value:after="ApplyFiltersAsync">
+        <MudSelectItem Value="@("true")">Active</MudSelectItem>
+        <MudSelectItem Value="@("false")">Paused</MudSelectItem>
+    </MudSelect>
+</PageFilter>
+
+
+<PageTable TItem="PlcFaultMappingItem"
+             @ref="_table"
+             ItemsProvider="LoadAsync"
+             RowsPerPage="25"
+             PageSizeOptions="@(new[] { 25 })"
+             AriaLabel="Danh sách ánh xạ fault code"
+             EmptyTitle="Chưa có fault mapping phù hợp">
+    <HeaderContent>
+        <MudTh><MudTableSortLabel T="PlcFaultMappingItem" SortLabel="scope">Scope</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="PlcFaultMappingItem" SortLabel="fault">FaultCode</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="PlcFaultMappingItem" SortLabel="reason">Reason</MudTableSortLabel></MudTh>
+        <MudTh>Description</MudTh>
+        <MudTh>Status</MudTh>
+        <MudTh>Actions</MudTh>
+    </HeaderContent>
+    <RowTemplate Context="item">
+        <MudTd DataLabel="Scope">@item.Scope</MudTd>
+        <MudTd DataLabel="FaultCode"><strong>@item.FaultCode</strong></MudTd>
+        <MudTd DataLabel="Reason">@item.Reason</MudTd>
+        <MudTd DataLabel="Description">@item.Description</MudTd>
+        <MudTd DataLabel="Status">
+            <StatusChip Text="@(item.IsActive ? "Active" : "Paused")"
+                        Kind="@(item.IsActive ? SemanticKind.Success : SemanticKind.Warning)" />
+        </MudTd>
+        <MudTd DataLabel="Actions">
+            <AuthorizeAction Policy="@Capabilities.PlcManage">
+                <RowActionMenu Label="@($"Thao tác mã lỗi {item.FaultCode}")">
+                    <RowAction Label="Sửa fault mapping"
+                               Icon="@Icons.Material.Filled.Edit"
+                               OnClick="@(() => BeginEdit(item))" />
+                    <RowAction Label="Bật hoặc tạm dừng fault mapping"
+                               Icon="@(item.IsActive
+                               ? Icons.Material.Filled.Pause
+                               : Icons.Material.Filled.PlayArrow)"
+                               OnClick="@(() => ToggleAsync(item))" />
+                    <RowAction Label="Xóa fault mapping"
+                               Icon="@Icons.Material.Filled.Delete" Color="Color.Error"
+                               OnClick="@(() => DeleteAsync(item))" />
+                </RowActionMenu>
+            </AuthorizeAction>
+        </MudTd>
+    </RowTemplate>
+</PageTable>

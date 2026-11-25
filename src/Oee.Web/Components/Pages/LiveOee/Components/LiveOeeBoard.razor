@@ -1,0 +1,42 @@
+@namespace Oee.Web.Components.Pages
+@using Oee.Application.Contracts.Modules
+
+@* Chỉ dùng component MudBlazor để trình bày snapshot realtime; không tạo timer hoặc query riêng. *@
+<PageHeader Title="Live OEE" Subtitle="Hiệu suất thiết bị · trạng thái và sản lượng trực tiếp">
+    <Actions><MudText Typo="Typo.caption" Class="mud-text-secondary">Cập nhật @Model.UpdatedAt.ToLocalTime().ToString("HH:mm:ss")</MudText></Actions>
+    <Metrics>
+        <MetricCard Label="Đang chạy" Value="@Model.Summary.Running.ToString("N0")" Icon="@Icons.Material.Filled.PlayArrow" Color="Color.Success" />
+        <MetricCard Label="Đang dừng" Value="@Model.Summary.Stopped.ToString("N0")" Icon="@Icons.Material.Filled.Stop" Color="Color.Error" />
+        <MetricCard Label="Mất dữ liệu" Value="@Model.Summary.Unhealthy.ToString("N0")" Icon="@Icons.Material.Filled.WifiOff" Color="Color.Warning" />
+    </Metrics>
+</PageHeader>
+
+@if (Model.StreamState != "Live")
+{
+    <MudAlert Dense="true" Class="mb-3"
+              Severity="Severity.Warning" Variant="Variant.Outlined">
+        @Model.StreamError Dữ liệu xác nhận gần nhất vẫn được giữ nguyên.
+    </MudAlert>
+}
+
+@if (Model.Machines.Count == 0)
+{
+    <MudPaper Class="pa-8" Elevation="0" Outlined="true">
+        <MudStack Spacing="1" AlignItems="AlignItems.Center">
+            <MudIcon Size="Size.Large" Icon="@Icons.Material.Filled.PrecisionManufacturing" Color="Color.Secondary" />
+            <MudText Typo="Typo.h6">Chưa có thiết bị</MudText>
+            <MudText Typo="Typo.body2" Align="Align.Center">Cấu hình WorkUnit và ánh xạ PLC để bắt đầu giám sát.</MudText>
+        </MudStack>
+    </MudPaper>
+}
+else
+{
+    <MudGrid Spacing="2" aria-live="polite">
+        @foreach (var machine in Model.Machines)
+        {
+            <MudItem @key="machine.WorkUnitId" xs="12" sm="6" md="4" lg="3" Class="d-flex">
+                <LiveMachineCard Machine="machine" />
+            </MudItem>
+        }
+    </MudGrid>
+}

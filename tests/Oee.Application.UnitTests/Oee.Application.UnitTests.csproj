@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Oee.Application\Oee.Application.csproj" />
+  </ItemGroup>
+
+</Project>
